@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLaDOS - AI Chat Interface</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 GLaDOS Chat</h1>
+            <p class="subtitle">Powered by Grok AI</p>
+            <div class="status" id="status">
+                <span class="status-indicator" id="status-indicator"></span>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </header>
+
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-message">
+                    <h2>Welcome to GLaDOS Chat! 👋</h2>
+                    <p>Start a conversation with Grok AI. You can:</p>
+                    <ul>
+                        <li>💬 Send text messages</li>
+                        <li>🖼️ Paste or upload images</li>
+                        <li>📝 Share code snippets</li>
+                        <li>🔄 Continue multi-turn conversations</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="image-preview" id="image-preview" style="display: none;">
+                <div class="image-preview-content">
+                    <img id="preview-image" src="" alt="Preview">
+                    <button class="remove-image" id="remove-image" title="Remove image">×</button>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <input type="file" id="file-input" accept="image/*" style="display: none;">
+                <button class="attach-btn" id="attach-btn" title="Attach image">
+                    📎
+                </button>
+                <textarea 
+                    id="message-input" 
+                    placeholder="Type your message... (Ctrl+Enter to send, Ctrl+V to paste images)"
+                    rows="1"
+                ></textarea>
+                <button id="send-btn" class="send-btn" title="Send message">
+                    ➤
+                </button>
+            </div>
+
+            <div class="controls">
+                <button id="clear-btn" class="control-btn">Clear Chat</button>
+                <button id="export-btn" class="control-btn">Export Chat</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
