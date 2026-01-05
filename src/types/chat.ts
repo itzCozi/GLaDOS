@@ -1,0 +1,50 @@
+export interface Message {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  images?: string[]
+  timestamp: Date
+}
+
+export interface ChatState {
+  messages: Message[]
+  isLoading: boolean
+  error: string | null
+}
+
+export interface GrokAPIRequest {
+  messages: {
+    role: "user" | "assistant" | "system"
+    content: string | ContentPart[]
+  }[]
+  model: string
+  stream?: boolean
+}
+
+export interface ContentPart {
+  type: "text" | "image_url"
+  text?: string
+  image_url?: {
+    url: string
+  }
+}
+
+export interface GrokAPIResponse {
+  id: string
+  object: string
+  created: number
+  model: string
+  choices: {
+    index: number
+    message: {
+      role: "assistant"
+      content: string
+    }
+    finish_reason: string
+  }[]
+  usage: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
+}
