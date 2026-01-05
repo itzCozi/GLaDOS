@@ -2,12 +2,13 @@ import type { Message, MessageContent, GrokResponse } from './types'
 
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions'
 
-export async function sendMessage(
-  messages: Message[],
-  apiKey: string,
-  model: string = 'grok-2-vision-latest'
-): Promise<string> {
-  const formattedMessages = messages.map((msg) => {
+interface FormattedMessage {
+  role: 'user' | 'assistant' | 'system'
+  content: string | MessageContent[]
+}
+
+function formatMessages(messages: Message[]): FormattedMessage[] {
+  return messages.map((msg) => {
     if (msg.images && msg.images.length > 0) {
       const content: MessageContent[] = []
       
@@ -30,9 +31,17 @@ export async function sendMessage(
     
     return {
       role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : msg.content
+      content: msg.content
     }
   })
+}
+
+export async function sendMessage(
+  messages: Message[],
+  apiKey: string,
+  model: string = 'grok-2-vision-latest'
+): Promise<string> {
+  const formattedMessages = formatMessages(messages)
 
   const response = await fetch(GROK_API_URL, {
     method: 'POST',
@@ -61,32 +70,7 @@ export async function* streamMessage(
   apiKey: string,
   model: string = 'grok-2-vision-latest'
 ): AsyncGenerator<string, void, unknown> {
-  const formattedMessages = messages.map((msg) => {
-    if (msg.images && msg.images.length > 0) {
-      const content: MessageContent[] = []
-      
-      if (typeof msg.content === 'string' && msg.content.trim()) {
-        content.push({ type: 'text', text: msg.content })
-      }
-      
-      for (const imageUrl of msg.images) {
-        content.push({
-          type: 'image_url',
-          image_url: { url: imageUrl }
-        })
-      }
-      
-      return {
-        role: msg.role,
-        content
-      }
-    }
-    
-    return {
-      role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : msg.content
-    }
-  })
+  const formattedMessages = formatMessages(messages)
 
   const response = await fetch(GROK_API_URL, {
     method: 'POST',

@@ -111,10 +111,6 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
             )}
             disabled={disabled || isLoading}
             rows={1}
-            style={{
-              height: 'auto',
-              minHeight: '44px'
-            }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement
               target.style.height = 'auto'
