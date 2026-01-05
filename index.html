@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLaDOS - AI Chat Interface</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" integrity="sha384-rHl4ow88YvFFYwUJa91e8DzaWRGyFQHvDxlxD5BhDO+SC5TLJPqHUPtpBHQ/2Wgq" crossorigin="anonymous">
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js" integrity="sha384-zbcZRAOC1m4Ma+OuCSgjEaxBqG6bYqLdLT6Bv9TWHLAKhHpPvpkB4wPkJWr15xNK" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-xBsHBR6BS/LSlO+dDOqrLX8We8pMGYu3HNV/ScFyV/zKwd+voR+lVMQTpCpQFYfk" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>GLaDOS</h1>
+                <button id="new-chat-btn" class="new-chat-btn">+ New Chat</button>
+            </div>
+            <div class="chat-history" id="chat-history">
+                <!-- Chat history items will be added here -->
+            </div>
+            <div class="sidebar-footer">
+                <button id="settings-btn" class="settings-btn">⚙️ Settings</button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <!-- Chat Messages -->
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-message">
+                    <h2>Welcome to GLaDOS</h2>
+                    <p>Your AI-powered chat interface for the Grok API</p>
+                    <p>Start a conversation below. You can:</p>
+                    <ul>
+                        <li>📝 Send text messages</li>
+                        <li>🖼️ Paste images (Ctrl+V)</li>
+                        <li>💻 Share code snippets</li>
+                        <li>📄 Format with Markdown</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-container">
+                <div class="image-preview-container" id="image-preview-container">
+                    <!-- Pasted images will be previewed here -->
+                </div>
+                <div class="input-wrapper">
+                    <textarea 
+                        id="message-input" 
+                        placeholder="Type a message... (Ctrl+V to paste images)"
+                        rows="1"
+                    ></textarea>
+                    <button id="send-btn" class="send-btn" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    <span class="model-info">Powered by Grok API</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" id="settings-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="api-key">Grok API Key</label>
+                    <input type="password" id="api-key" placeholder="Enter your Grok API key">
+                </div>
+                <div class="form-group">
+                    <label for="model-select">Model</label>
+                    <select id="model-select">
+                        <option value="grok-3">Grok 3</option>
+                        <option value="grok-3-mini">Grok 3 Mini</option>
+                        <option value="grok-2-vision">Grok 2 Vision</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="system-prompt">System Prompt (Optional)</label>
+                    <textarea id="system-prompt" rows="3" placeholder="Enter a system prompt..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-settings" class="primary-btn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
