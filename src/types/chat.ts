@@ -6,8 +6,17 @@ export interface Message {
   timestamp: Date
 }
 
-export interface ChatState {
+export interface ChatSession {
+  id: string
+  title: string
   messages: Message[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ChatState {
+  sessions: ChatSession[]
+  currentSessionId: string | null
   isLoading: boolean
   error: string | null
 }

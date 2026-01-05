@@ -4,15 +4,22 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import type { Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { Copy, Check, User, Bot } from "lucide-react"
+import { Copy, Check, User, Bot, RotateCw, Edit2, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 
 interface ChatMessageProps {
   message: Message
+  onRegenerate?: () => void
+  onEdit?: (content: string) => void
+  onDelete?: () => void
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onRegenerate, onEdit, onDelete }: ChatMessageProps) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [copiedMessage, setCopiedMessage] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(message.content)
   const isUser = message.role === "user"
 
   const handleCopyCode = async (code: string) => {
@@ -21,13 +28,32 @@ export function ChatMessage({ message }: ChatMessageProps) {
     setTimeout(() => setCopiedCode(null), 2000)
   }
 
+  const handleCopyMessage = async () => {
+    await navigator.clipboard.writeText(message.content)
+    setCopiedMessage(true)
+    setTimeout(() => setCopiedMessage(false), 2000)
+  }
+
+  const handleEditSubmit = () => {
+    if (onEdit && editContent.trim() !== message.content) {
+      onEdit(editContent)
+    }
+    setIsEditing(false)
+  }
+
+  const handleEditCancel = () => {
+    setEditContent(message.content)
+    setIsEditing(false)
+  }
+
   return (
     <div
       className={cn(
-        "flex gap-3 p-4",
+        "group w-full hover:bg-muted/30 transition-colors",
         isUser ? "bg-transparent" : "bg-muted/50"
       )}
     >
+      <div className="max-w-6xl mx-auto flex gap-3 p-4 w-full">
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
@@ -36,8 +62,26 @@ export function ChatMessage({ message }: ChatMessageProps) {
       >
         {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
       </div>
-      <div className="flex-1 space-y-2 overflow-hidden">
-        <div className="prose prose-sm dark:prose-invert max-w-none">
+      <div className="flex-1 space-y-2 min-w-0">
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full min-h-25 p-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleEditSubmit}>
+                Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleEditCancel}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="prose prose-sm dark:prose-invert max-w-none">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -146,8 +190,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
           >
             {message.content}
           </ReactMarkdown>
-        </div>
-        {message.images && message.images.length > 0 && (
+          </div>
+        )}
+        {message.images && message.images.length > 0 && !isEditing && (
           <div className="flex flex-wrap gap-2 mt-2">
             {message.images.map((image, index) => (
               <img
@@ -159,6 +204,57 @@ export function ChatMessage({ message }: ChatMessageProps) {
             ))}
           </div>
         )}
+        {!isEditing && (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyMessage}
+              title="Copy message"
+              className="h-8 px-2"
+            >
+              {copiedMessage ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
+            {!isUser && onRegenerate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRegenerate}
+                title="Regenerate response"
+                className="h-8 px-2"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            )}
+            {isUser && onEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                title="Edit message"
+                className="h-8 px-2"
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDelete}
+                title="Delete message"
+                className="h-8 px-2"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
       </div>
     </div>
   )
