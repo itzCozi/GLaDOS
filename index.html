@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLaDOS - AI Chat Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <h1>GLaDOS</h1>
+            <div class="settings-icon" onclick="toggleSettings()">⚙️</div>
+        </header>
+
+        <div class="settings-panel" id="settingsPanel">
+            <div class="settings-content">
+                <h3>Settings</h3>
+                <div class="setting-item">
+                    <label for="apiKey">Grok API Key:</label>
+                    <input type="password" id="apiKey" placeholder="Enter your Grok API key">
+                </div>
+                <div class="setting-item">
+                    <label for="apiUrl">API URL:</label>
+                    <input type="text" id="apiUrl" value="https://api.x.ai/v1/chat/completions" placeholder="API endpoint">
+                </div>
+                <button onclick="saveSettings()" class="save-btn">Save Settings</button>
+                <button onclick="toggleSettings()" class="close-btn">Close</button>
+            </div>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <div class="welcome-message">
+                <h2>Welcome to GLaDOS</h2>
+                <p>Your minimalistic AI chat interface powered by Grok</p>
+                <p class="hint">Click the settings icon ⚙️ to configure your API key</p>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="image-preview" id="imagePreview"></div>
+            <div class="input-wrapper">
+                <button class="attach-btn" onclick="document.getElementById('imageInput').click()" title="Attach image">📎</button>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
+                <textarea 
+                    id="messageInput" 
+                    placeholder="Type your message... (Shift+Enter for new line)" 
+                    rows="1"
+                    onkeydown="handleKeyPress(event)"
+                    oninput="autoResize(this)"
+                    onpaste="handlePaste(event)"
+                ></textarea>
+                <button class="send-btn" onclick="sendMessage()" id="sendBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M2 10L18 2L10 18L8 11L2 10Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/DOMPurify/3.0.8/purify.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
