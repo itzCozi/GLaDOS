@@ -8,16 +8,13 @@ export async function sendMessage(
 ): Promise<AIResponse> {
   const adapter = getProviderAdapter(config.provider)
   
-  // Validate configuration
   if (!adapter.validateConfig(config)) {
     throw new Error(`Invalid configuration for provider: ${config.provider}`)
   }
 
-  // Convert Message[] to AIMessage[]
   const aiMessages: AIMessage[] = messages.map((msg) => {
     if (msg.images && msg.images.length > 0) {
       if (!adapter.supportsImages()) {
-        // If provider doesn't support images, just send text
         return {
           role: msg.role,
           content: msg.content,

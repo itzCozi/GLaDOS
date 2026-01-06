@@ -4,7 +4,6 @@ export class OllamaAdapter implements AIProviderAdapter {
   async sendMessage(messages: AIMessage[], config: ProviderConfig): Promise<AIResponse> {
     const baseURL = config.baseURL || "http://localhost:11434"
     
-    // Convert messages to simple string format for Ollama
     const ollamaMessages = messages.map(msg => ({
       role: msg.role,
       content: typeof msg.content === "string" ? msg.content : 

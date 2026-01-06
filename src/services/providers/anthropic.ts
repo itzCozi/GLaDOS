@@ -2,25 +2,21 @@ import type { AIProviderAdapter, AIMessage, AIResponse, ProviderConfig, ContentP
 
 export class AnthropicAdapter implements AIProviderAdapter {
   async sendMessage(messages: AIMessage[], config: ProviderConfig): Promise<AIResponse> {
-    // Anthropic requires system messages to be separate
     const systemMessages = messages.filter(m => m.role === "system")
     const otherMessages = messages.filter(m => m.role !== "system")
     const systemPrompt = systemMessages.map(m => 
       typeof m.content === "string" ? m.content : m.content.find(c => c.type === "text")?.text ?? ""
     ).join("\n")
 
-    // Convert messages to Anthropic format
     const anthropicMessages = otherMessages.map(msg => {
       if (typeof msg.content === "string") {
         return { role: msg.role, content: msg.content }
       }
       
-      // Handle multimodal content
       const content = msg.content.map((part: ContentPart) => {
         if (part.type === "text") {
           return { type: "text", text: part.text }
         } else if (part.type === "image_url") {
-          // Anthropic uses base64 images
           const url = part.image_url?.url ?? ""
           if (url.startsWith("data:")) {
             const [mediaType, base64] = url.substring(5).split(",")
@@ -33,7 +29,6 @@ export class AnthropicAdapter implements AIProviderAdapter {
               },
             }
           }
-          // For non-base64 URLs, we'd need to fetch and convert
           return { type: "text", text: "[Image not supported in URL format]" }
         }
         return { type: "text", text: "" }

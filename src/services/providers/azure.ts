@@ -6,7 +6,6 @@ export class AzureAdapter implements AIProviderAdapter {
       throw new Error("Azure OpenAI requires a baseURL (endpoint)")
     }
 
-    // Azure endpoint format: https://{resource-name}.openai.azure.com/openai/deployments/{deployment-id}/chat/completions?api-version=2024-02-15-preview
     const url = `${config.baseURL}/openai/deployments/${config.model}/chat/completions?api-version=2024-08-01-preview`
 
     const response = await fetch(url, {

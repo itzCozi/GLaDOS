@@ -35,7 +35,7 @@ export function ChatSidebar({
     : sessions
 
   return (
-    <div className="w-full md:w-[260px] flex flex-col h-full bg-background md:bg-muted/30 border-r border-border absolute z-50 md:relative md:z-0">
+    <div className="w-full md:w-[300px] flex flex-col h-full bg-background md:bg-muted/30 border-r border-border absolute z-50 md:relative md:z-0">
       <div className="flex items-center justify-between p-4 pb-2 md:hidden">
         <h2 className="font-semibold text-lg">Chats</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -67,7 +67,7 @@ export function ChatSidebar({
               )}
               onClick={() => onSelectSession(session.id)}
             >
-              <div className="flex items-center gap-2 overflow-hidden">
+              <div className="flex-1 flex items-center gap-2 overflow-hidden">
                 <MessageSquare className="h-4 w-4 shrink-0" />
                 <span className="truncate">{session.title}</span>
               </div>

@@ -24,6 +24,8 @@ interface SettingsDialogProps {
   setAzureEndpoint: (endpoint: string) => void
   ollamaEndpoint: string
   setOllamaEndpoint: (endpoint: string) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function SettingsDialog({
@@ -37,12 +39,19 @@ export function SettingsDialog({
   setAzureEndpoint,
   ollamaEndpoint,
   setOllamaEndpoint,
+  open: propOpen,
+  onOpenChange: propOnOpenChange,
 }: SettingsDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const open = propOpen ?? internalOpen
+  const setOpen = (newOpen: boolean) => {
+    setInternalOpen(newOpen)
+    propOnOpenChange?.(newOpen)
+  }
   
   const handleProviderChange = (newProvider: AIProvider) => {
     setProvider(newProvider)
-    // Set default model for the new provider
     const defaultModel = PROVIDER_MODELS[newProvider][0]
     if (defaultModel) {
       setModel(defaultModel)
@@ -68,7 +77,7 @@ export function SettingsDialog({
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
-            Configure your GLaDOS chat experience
+            Configure your GLaDOS chat experience. Optimized for xAI Grok.
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="provider" className="w-full">
@@ -92,7 +101,7 @@ export function SettingsDialog({
                 <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
                 <option value="anthropic">Anthropic (Claude)</option>
                 <option value="google">Google AI (Gemini)</option>
-                <option value="grok">xAI (Grok)</option>
+                <option value="grok">xAI (Grok) - Recommended</option>
                 <option value="azure">Azure OpenAI</option>
                 <option value="ollama">Ollama (Local)</option>
               </select>

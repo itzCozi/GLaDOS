@@ -43,21 +43,20 @@ export function ChatContainer() {
   const [visibleMessagesCount, setVisibleMessagesCount] = useState<Record<string, number>>({})
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState<{ content: string; images: string[] } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const isAutoScrolling = useRef(false)
 
-  // Derived state
   const currentSession = useMemo(() => sessions.find((s) => s.id === currentSessionId), [sessions, currentSessionId])
   const allMessages = useMemo(() => currentSession?.messages || [], [currentSession])
   
-  // Get visible count for current session
   const currentVisibleCount = useMemo(() => {
     if (!currentSessionId) return MESSAGES_PER_PAGE
     return visibleMessagesCount[currentSessionId] || MESSAGES_PER_PAGE
   }, [currentSessionId, visibleMessagesCount])
   
-  // Get messages to display (most recent N messages)
   const messages = useMemo(() => {
     const startIndex = Math.max(0, allMessages.length - currentVisibleCount)
     return allMessages.slice(startIndex)
@@ -65,7 +64,6 @@ export function ChatContainer() {
   
   const hasMoreMessages = allMessages.length > currentVisibleCount
 
-  // Initialize
   useEffect(() => {
     const savedSessions = localStorage.getItem(STORAGE_KEY_SESSIONS)
     const savedCurrentId = localStorage.getItem(STORAGE_KEY_CURRENT_SESSION)
@@ -89,7 +87,6 @@ export function ChatContainer() {
         console.error("Failed to parse sessions", e)
       }
     } else {
-        // Migration from old cookie
         const oldMessages = Cookies.get(STORAGE_KEY_MESSAGES_OLD)
         if (oldMessages) {
              try {
@@ -119,7 +116,6 @@ export function ChatContainer() {
     setIsInitialized(true)
   }, [])
 
-  // Persistence
   useEffect(() => {
     if (!isInitialized) return
     localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions))
@@ -145,7 +141,6 @@ export function ChatContainer() {
     Cookies.set(STORAGE_KEY_MODEL, model, { expires: 365 })
   }, [model])
 
-  // Auto-scroll to bottom for new messages only
   useEffect(() => {
     if (scrollRef.current && !isAutoScrolling.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -153,7 +148,6 @@ export function ChatContainer() {
     isAutoScrolling.current = false
   }, [messages.length, currentSessionId])
 
-  // Reset visible messages count when switching sessions
   useEffect(() => {
     if (currentSessionId && !visibleMessagesCount[currentSessionId]) {
       setVisibleMessagesCount(prev => ({
@@ -163,7 +157,31 @@ export function ChatContainer() {
     }
   }, [currentSessionId, visibleMessagesCount])
 
-  // Intersection observer for lazy loading
+  const loadMoreMessages = useCallback(() => {
+    if (!currentSessionId || isLoadingMore) return
+    
+    setIsLoadingMore(true)
+    isAutoScrolling.current = true
+    
+    const scrollElement = scrollRef.current
+    const previousScrollHeight = scrollElement?.scrollHeight || 0
+    
+    setTimeout(() => {
+      setVisibleMessagesCount(prev => ({
+        ...prev,
+        [currentSessionId]: (prev[currentSessionId] || MESSAGES_PER_PAGE) + MESSAGES_PER_PAGE
+      }))
+      
+      setTimeout(() => {
+        if (scrollElement) {
+          const newScrollHeight = scrollElement.scrollHeight
+          scrollElement.scrollTop = newScrollHeight - previousScrollHeight
+        }
+        setIsLoadingMore(false)
+      }, 0)
+    }, 300)
+  }, [currentSessionId, isLoadingMore])
+
   useEffect(() => {
     if (!loadMoreRef.current || !hasMoreMessages) return
 
@@ -178,34 +196,7 @@ export function ChatContainer() {
 
     observer.observe(loadMoreRef.current)
     return () => observer.disconnect()
-  }, [hasMoreMessages, isLoadingMore, currentSessionId])
-
-  const loadMoreMessages = useCallback(() => {
-    if (!currentSessionId || isLoadingMore) return
-    
-    setIsLoadingMore(true)
-    isAutoScrolling.current = true
-    
-    // Store current scroll position
-    const scrollElement = scrollRef.current
-    const previousScrollHeight = scrollElement?.scrollHeight || 0
-    
-    setTimeout(() => {
-      setVisibleMessagesCount(prev => ({
-        ...prev,
-        [currentSessionId]: (prev[currentSessionId] || MESSAGES_PER_PAGE) + MESSAGES_PER_PAGE
-      }))
-      
-      // Restore scroll position after new messages are loaded
-      setTimeout(() => {
-        if (scrollElement) {
-          const newScrollHeight = scrollElement.scrollHeight
-          scrollElement.scrollTop = newScrollHeight - previousScrollHeight
-        }
-        setIsLoadingMore(false)
-      }, 0)
-    }, 300)
-  }, [currentSessionId, isLoadingMore])
+  }, [hasMoreMessages, isLoadingMore, currentSessionId, loadMoreMessages])
 
   const createNewChat = useCallback(() => {
     const newSession: ChatSession = {
@@ -220,21 +211,16 @@ export function ChatContainer() {
     return newSession.id
   }, [])
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K: New chat
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         createNewChat()
       }
-      // Cmd/Ctrl + F: Focus search
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
         e.preventDefault()
         setIsSidebarOpen(true)
-        // Focus search input if it exists
       }
-      // Cmd/Ctrl + B: Toggle sidebar
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault()
         setIsSidebarOpen(!isSidebarOpen)
@@ -307,7 +293,6 @@ export function ChatContainer() {
         )
       )
 
-      // Regenerate response after edit
       setIsLoading(true)
       setError(null)
 
@@ -369,7 +354,8 @@ export function ChatContainer() {
   const handleSend = useCallback(
     async (content: string, images: string[]) => {
       if (!apiKey) {
-        setError("Please set your API key in settings")
+        setPendingMessage({ content, images })
+        setIsSettingsOpen(true)
         return
       }
 
@@ -451,6 +437,13 @@ export function ChatContainer() {
     [apiKey, currentSessionId, allMessages, model]
   )
 
+  useEffect(() => {
+    if (!isSettingsOpen && apiKey && pendingMessage) {
+      handleSend(pendingMessage.content, pendingMessage.images);
+      setPendingMessage(null);
+    }
+  }, [isSettingsOpen, apiKey, pendingMessage, handleSend]);
+
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">
       {isSidebarOpen && (
@@ -519,6 +512,8 @@ export function ChatContainer() {
               setAzureEndpoint={() => {}}
               ollamaEndpoint="http://localhost:11434"
               setOllamaEndpoint={() => {}}
+              open={isSettingsOpen}
+              onOpenChange={setIsSettingsOpen}
             />
             </div>
         </header>
@@ -589,7 +584,7 @@ export function ChatContainer() {
                 )}
                 {isLoading && (
                     <div className="w-full bg-muted/50">
-                        <div className="max-w-3xl mx-auto flex items-center gap-3 p-4 w-full">
+                        <div className="max-w-3xl flex items-center gap-3 p-4 w-full">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
                                 <div className="animate-pulse">●</div>
                             </div>
@@ -609,7 +604,6 @@ export function ChatContainer() {
         <ChatInput
             onSend={handleSend}
             isLoading={isLoading}
-            disabled={!apiKey}
         />
       </div>
     </div>

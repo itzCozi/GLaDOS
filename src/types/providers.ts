@@ -4,7 +4,7 @@ export interface ProviderConfig {
   provider: AIProvider
   apiKey: string
   model: string
-  baseURL?: string // For custom endpoints (Azure, Ollama)
+  baseURL?: string
 }
 
 export interface AIMessage {

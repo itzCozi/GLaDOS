@@ -2,7 +2,6 @@ import type { AIProviderAdapter, AIMessage, AIResponse, ProviderConfig, ContentP
 
 export class GoogleAdapter implements AIProviderAdapter {
   async sendMessage(messages: AIMessage[], config: ProviderConfig): Promise<AIResponse> {
-    // Google Gemini uses a different message format
     const contents = messages.map(msg => {
       const role = msg.role === "assistant" ? "model" : "user"
       
@@ -13,7 +12,6 @@ export class GoogleAdapter implements AIProviderAdapter {
         }
       }
       
-      // Handle multimodal content
       const parts = msg.content.map((part: ContentPart) => {
         if (part.type === "text") {
           return { text: part.text }

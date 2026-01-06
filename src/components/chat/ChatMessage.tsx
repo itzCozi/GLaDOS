@@ -53,7 +53,7 @@ export function ChatMessage({ message, onRegenerate, onEdit, onDelete }: ChatMes
         isUser ? "bg-transparent" : "bg-muted/50"
       )}
     >
-      <div className="max-w-6xl mx-auto flex gap-3 p-4 w-full">
+      <div className="max-w-full flex gap-3 p-4 w-full lg:pr-[12rem]">
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
@@ -81,7 +81,7 @@ export function ChatMessage({ message, onRegenerate, onEdit, onDelete }: ChatMes
             </div>
           </div>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          <div className="prose prose-sm dark:prose-invert max-w-[120ch] leading-relaxed wrap-break-word">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
