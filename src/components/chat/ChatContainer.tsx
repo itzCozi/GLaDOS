@@ -4,6 +4,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatSidebar } from './ChatSidebar';
 import { SettingsDialog } from './SettingsDialog.tsx';
+import { RenameDialog } from './RenameDialog';
 import { sendMessage, generateImage, generateChatTitle } from '@/services/grok';
 import { exportChat } from '@/lib/export';
 import type { Message, ChatSession } from '@/types/chat';
@@ -64,6 +65,9 @@ export function ChatContainer() {
     return true;
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [generatingSessionId, setGeneratingSessionId] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const { apiKey, model, systemPhrase, aiName, siteName } = useSettings();
   const [visibleMessagesCount, setVisibleMessagesCount] = useState<
@@ -72,6 +76,7 @@ export function ChatContainer() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<{
     content: string;
     images: string[];
@@ -278,22 +283,29 @@ export function ChatContainer() {
   );
 
   const handleRenameSession = useCallback((id: string) => {
-    const newTitle = window.prompt('Rename chat');
-    if (!newTitle || !newTitle.trim()) return;
-    setSessions((prev) =>
-      orderSessions(
-        prev.map((session) =>
-          session.id === id
-            ? {
-                ...session,
-                title: clampChatTitle(newTitle),
-                updatedAt: new Date(),
-              }
-            : session,
-        ),
-      ),
-    );
+    setRenameSessionId(id);
   }, []);
+
+  const handleRenameConfirm = useCallback(
+    (newTitle: string) => {
+      if (!renameSessionId) return;
+      setSessions((prev) =>
+        orderSessions(
+          prev.map((session) =>
+            session.id === renameSessionId
+              ? {
+                  ...session,
+                  title: clampChatTitle(newTitle),
+                  updatedAt: new Date(),
+                }
+              : session,
+          ),
+        ),
+      );
+      setRenameSessionId(null);
+    },
+    [renameSessionId],
+  );
 
   const handleRegenerateResponse = useCallback(
     async (messageIndex: number) => {
@@ -302,6 +314,7 @@ export function ChatContainer() {
       const actualIndex = allMessages.length - messages.length + messageIndex;
       const messagesUpToPoint = allMessages.slice(0, actualIndex);
       setIsLoading(true);
+      setGeneratingSessionId(currentSessionId);
       setError(null);
 
       try {
@@ -383,117 +396,7 @@ export function ChatContainer() {
         setError(errorMessage);
       } finally {
         setIsLoading(false);
-      }
-    },
-    [apiKey, currentSessionId, allMessages, messages, model, systemPhrase],
-  );
-
-  const handleEditMessage = useCallback(
-    async (messageIndex: number, newContent: string) => {
-      if (!apiKey || !currentSessionId) return;
-
-      const actualIndex = allMessages.length - messages.length + messageIndex;
-      const updatedMessage = {
-        ...allMessages[actualIndex],
-        content: newContent,
-      };
-      const messagesUpToEdit = [
-        ...allMessages.slice(0, actualIndex),
-        updatedMessage,
-      ];
-
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === currentSessionId
-            ? { ...s, messages: messagesUpToEdit, updatedAt: new Date() }
-            : s,
-        ),
-      );
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const messagesToSend = systemPhrase
-          ? [
-              {
-                id: 'system',
-                role: 'system' as const,
-                content: systemPhrase,
-                timestamp: new Date(),
-              },
-              ...messagesUpToEdit,
-            ]
-          : messagesUpToEdit;
-
-        const assistantMessageId = crypto.randomUUID();
-        const assistantMessage: Message = {
-          id: assistantMessageId,
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-        };
-
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === currentSessionId
-              ? {
-                  ...s,
-                  messages: [...messagesUpToEdit, assistantMessage],
-                  updatedAt: new Date(),
-                }
-              : s,
-          ),
-        );
-
-        let accumulatedResponse = '';
-        const response = await sendMessage(
-          messagesToSend,
-          apiKey,
-          model,
-          (chunk) => {
-            accumulatedResponse += chunk;
-            setSessions((prev) =>
-              prev.map((s) => {
-                if (s.id === currentSessionId) {
-                  const updatedMessages = s.messages.map((m) =>
-                    m.id === assistantMessageId
-                      ? { ...m, content: accumulatedResponse }
-                      : m,
-                  );
-                  return {
-                    ...s,
-                    messages: updatedMessages,
-                    updatedAt: new Date(),
-                  };
-                }
-                return s;
-              }),
-            );
-          },
-        );
-
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === currentSessionId
-              ? {
-                  ...s,
-                  messages: s.messages.map((m) =>
-                    m.id === assistantMessageId
-                      ? { ...m, content: response }
-                      : m,
-                  ),
-                  updatedAt: new Date(),
-                }
-              : s,
-          ),
-        );
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to regenerate';
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
+        setGeneratingSessionId(null);
       }
     },
     [apiKey, currentSessionId, allMessages, messages, model, systemPhrase],
@@ -584,7 +487,7 @@ export function ChatContainer() {
       });
 
       if (currentMessages.length === 0) {
-        generateChatTitle(content, apiKey, model)
+        generateChatTitle(content, apiKey)
           .then((aiTitle) => {
             if (aiTitle) {
               const finalTitle = clampChatTitle(aiTitle);
@@ -599,6 +502,7 @@ export function ChatContainer() {
       }
 
       setIsLoading(true);
+      setGeneratingSessionId(sessionId);
       setError(null);
 
       try {
@@ -709,6 +613,7 @@ export function ChatContainer() {
         setError(errorMessage);
       } finally {
         setIsLoading(false);
+        setGeneratingSessionId(null);
       }
     },
     [apiKey, currentSessionId, allMessages, model, systemPhrase],
@@ -868,23 +773,24 @@ export function ChatContainer() {
                           ? () => handleRegenerateResponse(index)
                           : undefined
                       }
-                      onEdit={
-                        message.role === 'user'
-                          ? (content) => handleEditMessage(index, content)
-                          : undefined
-                      }
                       onDelete={() => handleDeleteMessage(index)}
+                      isSidebarOpen={isSidebarOpen}
                     />
                   );
                 })}
               </div>
             )}
             {isLoading &&
+              generatingSessionId === currentSessionId &&
               (!messages.length ||
                 messages[messages.length - 1].role !== 'assistant' ||
                 !messages[messages.length - 1].content) && (
                 <div className="group w-full p-4">
-                  <div className="max-w-full flex gap-3 w-full lg:pr-48">
+                  <div
+                    className={`max-w-full flex gap-3 w-full mx-auto lg:pr-48 ${
+                      !isSidebarOpen ? 'md:max-w-7xl' : 'md:max-w-6xl'
+                    }`}
+                  >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-primary text-primary-foreground">
                       <Terminal className="h-4 w-4" />
                     </div>
@@ -911,6 +817,16 @@ export function ChatContainer() {
           placeholder={`Ask ${aiName}`}
         />
       </div>
+      {renameSessionId && (
+        <RenameDialog
+          open={!!renameSessionId}
+          onOpenChange={(open) => !open && setRenameSessionId(null)}
+          currentTitle={
+            sessions.find((s) => s.id === renameSessionId)?.title || ''
+          }
+          onRename={handleRenameConfirm}
+        />
+      )}
     </div>
   );
 }

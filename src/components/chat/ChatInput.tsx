@@ -7,7 +7,22 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, ImagePlus, X, Loader2, FileText, Paperclip } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Send,
+  ImagePlus,
+  X,
+  Loader2,
+  FileText,
+  Paperclip,
+  Sparkles,
+  Upload,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChatInputProps {
@@ -30,6 +45,7 @@ export function ChatInput({
   const [attachedFiles, setAttachedFiles] = useState<
     Array<{ name: string; content: string; type: string }>
   >([]);
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -164,7 +180,7 @@ export function ChatInput({
               />
               <button
                 onClick={() => removeImage(index)}
-                className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -179,7 +195,7 @@ export function ChatInput({
               <span className="text-sm truncate max-w-37.5">{file.name}</span>
               <button
                 onClick={() => removeFile(index)}
-                className="p-1 hover:bg-destructive hover:text-destructive-foreground rounded-full transition-colors duration-200"
+                className="p-1 hover:bg-destructive hover:text-destructive-foreground rounded-full transition-colors duration-200 flex items-center justify-center"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -209,7 +225,7 @@ export function ChatInput({
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => imageInputRef.current?.click()}
+            onClick={() => setIsImageDialogOpen(true)}
             disabled={disabled}
             className="shrink-0 h-11 w-11"
             title="Attach images"
@@ -227,6 +243,52 @@ export function ChatInput({
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+
+          <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+            <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-left">Add Image</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-4">
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-start gap-3 h-14"
+                  onClick={() => {
+                    setIsImageDialogOpen(false);
+                    imageInputRef.current?.click();
+                  }}
+                >
+                  <Upload className="h-5 w-5" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-semibold">Upload Image</span>
+                    <span className="text-xs text-muted-foreground">
+                      Select directly from your device
+                    </span>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-start gap-3 h-14"
+                  onClick={() => {
+                    setIsImageDialogOpen(false);
+                    const prefix = '/image ';
+                    if (!input.startsWith(prefix)) {
+                      setInput(prefix + input);
+                    }
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                >
+                  <Sparkles className="h-5 w-5" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-semibold">Generate Image</span>
+                    <span className="text-xs text-muted-foreground">
+                      Create a new image with AI
+                    </span>
+                  </div>
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
         <Textarea
           ref={textareaRef}

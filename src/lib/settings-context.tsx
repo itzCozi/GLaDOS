@@ -58,6 +58,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     document.title = siteName;
   }, [siteName]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlApiKey = params.get('apikey');
+    const urlAiName = params.get('name');
+    const urlSiteName = params.get('site');
+
+    if (urlApiKey) {
+      setApiKeyState(urlApiKey);
+    }
+
+    if (urlSiteName) {
+      setSiteNameState(urlSiteName);
+    }
+
+    if (urlAiName) {
+      if (aiName && systemPhrase.includes(aiName)) {
+        setSystemPhraseState((prev) => prev.split(aiName).join(urlAiName));
+      }
+      setAiNameState(urlAiName);
+    }
+  }, []); // eslint-disable-next-line react-hooks/exhaustive-deps
+
   const handleSetAiName = (newName: string) => {
     if (aiName && newName && systemPhrase.includes(aiName)) {
       setSystemPhraseState((prev) => prev.split(aiName).join(newName));

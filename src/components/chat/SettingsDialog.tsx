@@ -68,11 +68,19 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="api" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-auto">
-            <TabsTrigger value="api">API Key</TabsTrigger>
-            <TabsTrigger value="model">Model</TabsTrigger>
-            <TabsTrigger value="branding">Branding</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsList className="flex w-full h-auto overflow-x-auto justify-start p-1 gap-1">
+            <TabsTrigger value="api" className="flex-1 min-w-fit">
+              API Key
+            </TabsTrigger>
+            <TabsTrigger value="model" className="flex-1 min-w-fit">
+              Model
+            </TabsTrigger>
+            <TabsTrigger value="branding" className="flex-1 min-w-fit">
+              Branding
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="flex-1 min-w-fit">
+              Preferences
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="branding" className="space-y-4">
