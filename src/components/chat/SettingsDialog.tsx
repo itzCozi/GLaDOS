@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -7,64 +7,49 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Settings } from "lucide-react"
-import type { AIProvider } from "@/types/providers"
-import { PROVIDER_INFO, PROVIDER_MODELS } from "@/types/providers"
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ChevronDown, Settings } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { PROVIDER_INFO, PROVIDER_MODELS } from '../../types/providers';
 
 interface SettingsDialogProps {
-  provider: AIProvider
-  setProvider: (provider: AIProvider) => void
-  apiKeys: Record<string, string>
-  setApiKeys: (apiKeys: Record<string, string>) => void
-  model: string
-  setModel: (model: string) => void
-  azureEndpoint: string
-  setAzureEndpoint: (endpoint: string) => void
-  ollamaEndpoint: string
-  setOllamaEndpoint: (endpoint: string) => void
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
+  apiKey: string;
+  setApiKey: (key: string) => void;
+  model: string;
+  setModel: (model: string) => void;
+  systemPhrase?: string;
+  setSystemPhrase?: (phrase: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function SettingsDialog({
-  provider,
-  setProvider,
-  apiKeys,
-  setApiKeys,
+  apiKey,
+  setApiKey,
   model,
   setModel,
-  azureEndpoint,
-  setAzureEndpoint,
-  ollamaEndpoint,
-  setOllamaEndpoint,
+  systemPhrase,
+  setSystemPhrase,
   open: propOpen,
   onOpenChange: propOnOpenChange,
 }: SettingsDialogProps) {
-  const [internalOpen, setInternalOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false);
 
-  const open = propOpen ?? internalOpen
+  const open = propOpen ?? internalOpen;
   const setOpen = (newOpen: boolean) => {
-    setInternalOpen(newOpen)
-    propOnOpenChange?.(newOpen)
-  }
-  
-  const handleProviderChange = (newProvider: AIProvider) => {
-    setProvider(newProvider)
-    const defaultModel = PROVIDER_MODELS[newProvider][0]
-    if (defaultModel) {
-      setModel(defaultModel)
-    }
-  }
-  
-  const handleApiKeyChange = (value: string) => {
-    setApiKeys({ ...apiKeys, [provider]: value })
-  }
-  
-  const currentApiKey = apiKeys[provider] || ""
-  const providerInfo = PROVIDER_INFO[provider]
-  const availableModels = PROVIDER_MODELS[provider]
+    setInternalOpen(newOpen);
+    propOnOpenChange?.(newOpen);
+  };
+
+  const providerInfo = PROVIDER_INFO['grok'];
+  const availableModels = PROVIDER_MODELS['grok'];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -75,136 +60,126 @@ export function SettingsDialog({
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>
-            Configure your GLaDOS chat experience. Optimized for xAI Grok.
+          <DialogTitle className="text-left">Settings</DialogTitle>
+          <DialogDescription className="text-left">
+            Configure your GLaDOS chat experience.
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="provider" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="provider">Provider</TabsTrigger>
+        <Tabs defaultValue="api" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
             <TabsTrigger value="api">API Key</TabsTrigger>
             <TabsTrigger value="model">Model</TabsTrigger>
             <TabsTrigger value="preferences">Preferences</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="provider" className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                AI Provider
-              </label>
-              <select
-                value={provider}
-                onChange={(e) => handleProviderChange(e.target.value as AIProvider)}
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
-                <option value="anthropic">Anthropic (Claude)</option>
-                <option value="google">Google AI (Gemini)</option>
-                <option value="grok">xAI (Grok) - Recommended</option>
-                <option value="azure">Azure OpenAI</option>
-                <option value="ollama">Ollama (Local)</option>
-              </select>
-              <p className="text-xs text-muted-foreground mt-2">
-                {providerInfo.description}
-              </p>
-            </div>
-            
-            {provider === "azure" && (
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Azure Endpoint
-                </label>
-                <input
-                  type="text"
-                  value={azureEndpoint}
-                  onChange={(e) => setAzureEndpoint(e.target.value)}
-                  placeholder="https://your-resource.openai.azure.com"
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Your Azure OpenAI resource endpoint
-                </p>
-              </div>
-            )}
-            
-            {provider === "ollama" && (
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Ollama Endpoint
-                </label>
-                <input
-                  type="text"
-                  value={ollamaEndpoint}
-                  onChange={(e) => setOllamaEndpoint(e.target.value)}
-                  placeholder="http://localhost:11434"
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Your local Ollama server URL
-                </p>
-              </div>
-            )}
-          </TabsContent>
-          
+
           <TabsContent value="api" className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
-                {providerInfo.name} API Key
+                Grok API Key
               </label>
-              {providerInfo.requiresApiKey ? (
-                <>
-                  <input
-                    type="password"
-                    value={currentApiKey}
-                    onChange={(e) => handleApiKeyChange(e.target.value)}
-                    placeholder={`Enter your ${providerInfo.name} API key`}
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Get your API key from{" "}
-                    <a
-                      href={providerInfo.apiKeyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      {providerInfo.name}
-                    </a>
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No API key required for {providerInfo.name}
-                </p>
-              )}
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={`Enter your Grok API key`}
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Get your API key from{' '}
+                <a
+                  href={providerInfo.apiKeyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  xAI
+                </a>
+              </p>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="model" className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
                 Select Model
               </label>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {availableModels.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+              {(() => {
+                const displayModels = availableModels;
+                const isCustom = !displayModels.includes(model);
+
+                return (
+                  <>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          {model || 'Select a model'}
+                          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      {/* make this width full*/}
+                      <DropdownMenuContent className="max-h-[300px] overflow-y-auto w-[80vw] md:w-[550px]">
+                        <DropdownMenuRadioGroup
+                          value={isCustom ? 'custom_option' : model}
+                          onValueChange={(val) => {
+                            if (val === 'custom_option') {
+                              setModel('');
+                            } else {
+                              setModel(val);
+                            }
+                          }}
+                        >
+                          {displayModels.map((m) => (
+                            <DropdownMenuRadioItem key={m} value={m}>
+                              {m}
+                            </DropdownMenuRadioItem>
+                          ))}
+                          <DropdownMenuRadioItem value="custom_option">
+                            Custom Model...
+                          </DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {isCustom && (
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          value={model}
+                          onChange={(e) => setModel(e.target.value)}
+                          placeholder="Enter specific model ID"
+                          className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               <p className="text-xs text-muted-foreground mt-2">
                 Choose the model that best fits your needs
               </p>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="preferences" className="space-y-4">
             <div className="space-y-4">
+              {setSystemPhrase && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    System Phrase
+                  </label>
+                  <textarea
+                    value={systemPhrase}
+                    onChange={(e) => setSystemPhrase(e.target.value)}
+                    placeholder="You are GLaDOS, a sarcastic AI..."
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-25"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Instructions for how the AI should behave.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Response Style
@@ -229,33 +204,14 @@ export function SettingsDialog({
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Higher values make output more creative, lower values more focused
+                  Higher values make output more creative, lower values more
+                  focused
                 </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">
-                  Enable Code Syntax Highlighting
-                </label>
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">
-                  Auto-scroll to New Messages
-                </label>
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-4 w-4 rounded border-gray-300"
-                />
               </div>
             </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

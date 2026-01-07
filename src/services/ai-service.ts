@@ -1,18 +1,8 @@
-import type { AIProvider, AIProviderAdapter } from "@/types/providers"
-import { OpenAIAdapter } from "./providers/openai"
-import { AnthropicAdapter } from "./providers/anthropic"
-import { GoogleAdapter } from "./providers/google"
+import type { AIProvider, AIProviderAdapter } from "../types/providers"
 import { GrokAdapter } from "./providers/grok"
-import { AzureAdapter } from "./providers/azure"
-import { OllamaAdapter } from "./providers/ollama"
 
 const adapters: Record<AIProvider, AIProviderAdapter> = {
-  openai: new OpenAIAdapter(),
-  anthropic: new AnthropicAdapter(),
-  google: new GoogleAdapter(),
-  grok: new GrokAdapter(),
-  azure: new AzureAdapter(),
-  ollama: new OllamaAdapter()
+  grok: new GrokAdapter()
 }
 
 export function getProviderAdapter(provider: AIProvider): AIProviderAdapter {
