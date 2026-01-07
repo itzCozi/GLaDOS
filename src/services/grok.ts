@@ -11,6 +11,7 @@ export async function sendMessage(
   messages: Message[],
   apiKey: string,
   model: string = 'grok-4',
+  onChunk?: (chunk: string) => void,
 ): Promise<string> {
   const formattedMessages = messages.map((msg) => {
     if (msg.images && msg.images.length > 0) {
@@ -35,7 +36,7 @@ export async function sendMessage(
   const request: GrokAPIRequest = {
     messages: formattedMessages as GrokAPIRequest['messages'],
     model,
-    stream: false,
+    stream: !!onChunk,
   };
 
   const response = await fetch(GROK_API_URL, {
@@ -52,6 +53,41 @@ export async function sendMessage(
     throw new Error(`API request failed: ${response.status} - ${errorText}`);
   }
 
+  if (onChunk && response.body) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          const dataStr = trimmed.slice(6);
+          if (dataStr === '[DONE]') continue;
+          try {
+            const data = JSON.parse(dataStr);
+            const content = data.choices[0]?.delta?.content || '';
+            if (content) {
+              fullContent += content;
+              onChunk(content);
+            }
+          } catch (e) {
+            console.error('Error parsing stream chunk', e);
+          }
+        }
+      }
+    }
+    return fullContent;
+  }
+
   const data: GrokAPIResponse = await response.json();
   return data.choices[0]?.message.content ?? '';
 }
@@ -61,7 +97,6 @@ export async function generateChatTitle(
   apiKey: string,
   model: string = 'grok-4',
 ): Promise<string> {
-  // Use a specialized prompt to force brief, headline-style titles.
   const prompt = `Generate a very short, concise title (max 4-5 words, under 25 chars) for the following user message. Do not use quotes or punctuation. return ONLY the title.
   
   User message: "${message}"`;
@@ -184,8 +219,6 @@ export async function generateImage(
       return '';
     };
 
-    // First attempt: include an explicit model only if it doesn't look like a language model.
-    // Second attempt (fallback): omit model so the API can choose a default image model.
     let data: unknown;
     try {
       data = await doRequest(true);

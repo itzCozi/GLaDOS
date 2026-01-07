@@ -12,8 +12,6 @@ import {
   RotateCw,
   Edit2,
   Trash2,
-  Volume2,
-  Square,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -35,41 +33,7 @@ export function ChatMessage({
   const [copiedMessage, setCopiedMessage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const isUser = message.role === 'user';
-
-  const handleReadAloud = () => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(message.content);
-    const voices = window.speechSynthesis.getVoices();
-
-    // Attempt to find a voice that fits GLaDOS
-    const preferredVoice = voices.find(
-      (v) =>
-        v.name.includes('Google US English') ||
-        v.name.includes('Zira') ||
-        v.name.includes('Samantha'),
-    );
-
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-
-    // Pitch and rate adjustments for GLaDOS-like effect
-    utterance.pitch = 1.25;
-    utterance.rate = 0.9;
-
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
-  };
 
   const handleCopyCode = async (code: string) => {
     await navigator.clipboard.writeText(code);
@@ -97,7 +61,7 @@ export function ChatMessage({
 
   return (
     <div className="group w-full p-4">
-      <div className="max-w-full flex gap-3 w-full lg:pr-[12rem]">
+      <div className="max-w-full flex gap-3 w-full lg:pr-48">
         <div
           className={cn(
             'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
@@ -281,21 +245,6 @@ export function ChatMessage({
                   <Copy className="h-4 w-4" />
                 )}
               </Button>
-              {!isUser && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReadAloud}
-                  title={isSpeaking ? 'Stop reading' : 'Read aloud'}
-                  className="h-8 px-2"
-                >
-                  {isSpeaking ? (
-                    <Square className="h-4 w-4 fill-current" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
               {!isUser && onRegenerate && (
                 <Button
                   variant="ghost"

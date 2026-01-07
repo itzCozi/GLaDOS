@@ -1,10 +1,10 @@
-import type { AIProvider, AIProviderAdapter } from "../types/providers"
-import { GrokAdapter } from "./providers/grok"
+import type { AIProvider, AIProviderAdapter } from '../types/providers';
+import { GrokAdapter } from './providers/grok';
 
 const adapters: Record<AIProvider, AIProviderAdapter> = {
-  grok: new GrokAdapter()
-}
+  grok: new GrokAdapter(),
+};
 
 export function getProviderAdapter(provider: AIProvider): AIProviderAdapter {
-  return adapters[provider]
+  return adapters[provider];
 }

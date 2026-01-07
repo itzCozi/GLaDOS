@@ -18,28 +18,30 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PROVIDER_INFO, PROVIDER_MODELS } from '../../types/providers';
+import { useSettings } from '@/lib/settings-store';
 
 interface SettingsDialogProps {
-  apiKey: string;
-  setApiKey: (key: string) => void;
-  model: string;
-  setModel: (model: string) => void;
-  systemPhrase?: string;
-  setSystemPhrase?: (phrase: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
 export function SettingsDialog({
-  apiKey,
-  setApiKey,
-  model,
-  setModel,
-  systemPhrase,
-  setSystemPhrase,
   open: propOpen,
   onOpenChange: propOnOpenChange,
 }: SettingsDialogProps) {
+  const {
+    apiKey,
+    setApiKey,
+    model,
+    setModel,
+    systemPhrase,
+    setSystemPhrase,
+    aiName,
+    setAiName,
+    siteName,
+    setSiteName,
+  } = useSettings();
+
   const [internalOpen, setInternalOpen] = useState(false);
 
   const open = propOpen ?? internalOpen;
@@ -58,19 +60,45 @@ export function SettingsDialog({
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-left">Settings</DialogTitle>
           <DialogDescription className="text-left">
-            Configure your GLaDOS chat experience.
+            Configure your {siteName} experience.
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="api" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsList className="grid w-full grid-cols-4 h-auto">
             <TabsTrigger value="api">API Key</TabsTrigger>
             <TabsTrigger value="model">Model</TabsTrigger>
+            <TabsTrigger value="branding">Branding</TabsTrigger>
             <TabsTrigger value="preferences">Preferences</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="branding" className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">AI Name</label>
+              <input
+                type="text"
+                value={aiName}
+                onChange={(e) => setAiName(e.target.value)}
+                placeholder="GLaDOS"
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Site Name
+              </label>
+              <input
+                type="text"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                placeholder="GLaDOS"
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </TabsContent>
 
           <TabsContent value="api" className="space-y-4">
             <div>
@@ -119,8 +147,7 @@ export function SettingsDialog({
                           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                         </Button>
                       </DropdownMenuTrigger>
-                      {/* make this width full*/}
-                      <DropdownMenuContent className="max-h-[300px] overflow-y-auto w-[80vw] md:w-[550px]">
+                      <DropdownMenuContent className="max-h-75 overflow-y-auto min-w-(--radix-dropdown-menu-trigger-width) w-full">
                         <DropdownMenuRadioGroup
                           value={isCustom ? 'custom_option' : model}
                           onValueChange={(val) => {
@@ -172,7 +199,7 @@ export function SettingsDialog({
                   <textarea
                     value={systemPhrase}
                     onChange={(e) => setSystemPhrase(e.target.value)}
-                    placeholder="You are GLaDOS, a sarcastic AI..."
+                    placeholder={`You are ${aiName}, a sarcastic AI...`}
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-25"
                   />
                   <p className="text-xs text-muted-foreground mt-2">

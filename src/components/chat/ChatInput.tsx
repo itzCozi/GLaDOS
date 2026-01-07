@@ -1,4 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, ImagePlus, X, Loader2, FileText, Paperclip } from 'lucide-react';
@@ -9,6 +15,7 @@ interface ChatInputProps {
   isLoading: boolean;
   disabled?: boolean;
   initialPrompt?: string;
+  placeholder?: string;
 }
 
 export function ChatInput({
@@ -16,6 +23,7 @@ export function ChatInput({
   isLoading,
   disabled,
   initialPrompt,
+  placeholder,
 }: ChatInputProps) {
   const [input, setInput] = useState(initialPrompt || '');
   const [images, setImages] = useState<string[]>([]);
@@ -31,6 +39,13 @@ export function ChatInput({
       textareaRef.current?.focus();
     }
   }, [initialPrompt]);
+
+  useLayoutEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
+    }
+  }, [input]);
 
   const handleSubmit = useCallback(() => {
     if (
@@ -219,7 +234,7 @@ export function ChatInput({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder="Ask GLaDOS"
+          placeholder={placeholder}
           disabled={disabled}
           className={cn(
             'min-h-11 max-h-50 resize-none py-3 flex-1',
@@ -229,6 +244,7 @@ export function ChatInput({
         />
         <Button
           type="button"
+          variant="ghost"
           onClick={handleSubmit}
           disabled={
             (!input.trim() &&

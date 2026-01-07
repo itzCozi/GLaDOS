@@ -7,7 +7,7 @@ import { SettingsDialog } from './SettingsDialog.tsx';
 import { sendMessage, generateImage, generateChatTitle } from '@/services/grok';
 import { exportChat } from '@/lib/export';
 import type { Message, ChatSession } from '@/types/chat';
-import { PanelLeft, Download } from 'lucide-react';
+import { PanelLeft, Download, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
@@ -16,13 +16,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import Cookies from 'js-cookie';
+import { useSettings } from '@/lib/settings-store';
 
 const STORAGE_KEY_SESSIONS = 'glados-sessions';
 const STORAGE_KEY_CURRENT_SESSION = 'glados-current-session';
-const STORAGE_KEY_API_KEY = 'glados-api-key';
-const STORAGE_KEY_MODEL = 'glados-model';
-const STORAGE_KEY_SYSTEM_PHRASE = 'glados-system-phrase';
 
 const MESSAGES_PER_PAGE = 20;
 
@@ -32,8 +29,10 @@ interface SerializedMessage extends Omit<Message, 'timestamp'> {
   timestamp: string;
 }
 
-interface SerializedChatSession
-  extends Omit<ChatSession, 'createdAt' | 'updatedAt' | 'messages'> {
+interface SerializedChatSession extends Omit<
+  ChatSession,
+  'createdAt' | 'updatedAt' | 'messages'
+> {
   createdAt: string;
   updatedAt: string;
   messages: SerializedMessage[];
@@ -49,6 +48,12 @@ function clampChatTitle(
   return normalized.slice(0, maxLength).trimEnd();
 }
 
+function orderSessions(sessions: ChatSession[]): ChatSession[] {
+  const pinned = sessions.filter((session) => session.pinned);
+  const unpinned = sessions.filter((session) => !session.pinned);
+  return [...pinned, ...unpinned];
+}
+
 export function ChatContainer() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -60,15 +65,7 @@ export function ChatContainer() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState(
-    () => Cookies.get(STORAGE_KEY_API_KEY) || '',
-  );
-  const [model, setModel] = useState(
-    () => Cookies.get(STORAGE_KEY_MODEL) || 'grok-4',
-  );
-  const [systemPhrase, setSystemPhrase] = useState(
-    () => Cookies.get(STORAGE_KEY_SYSTEM_PHRASE) || '',
-  );
+  const { apiKey, model, systemPhrase, aiName, siteName } = useSettings();
   const [visibleMessagesCount, setVisibleMessagesCount] = useState<
     Record<string, number>
   >({});
@@ -92,6 +89,8 @@ export function ChatContainer() {
     [currentSession],
   );
 
+  const orderedSessions = useMemo(() => orderSessions(sessions), [sessions]);
+
   const currentVisibleCount = useMemo(() => {
     if (!currentSessionId) return MESSAGES_PER_PAGE;
     return visibleMessagesCount[currentSessionId] || MESSAGES_PER_PAGE;
@@ -112,15 +111,18 @@ export function ChatContainer() {
       try {
         const parsed = JSON.parse(savedSessions) as SerializedChatSession[];
         setSessions(
-          parsed.map((s) => ({
-            ...s,
-            createdAt: new Date(s.createdAt),
-            updatedAt: new Date(s.updatedAt),
-            messages: s.messages.map((m) => ({
-              ...m,
-              timestamp: new Date(m.timestamp),
+          orderSessions(
+            parsed.map((s) => ({
+              ...s,
+              pinned: Boolean((s as SerializedChatSession).pinned),
+              createdAt: new Date(s.createdAt),
+              updatedAt: new Date(s.updatedAt),
+              messages: s.messages.map((m) => ({
+                ...m,
+                timestamp: new Date(m.timestamp),
+              })),
             })),
-          })),
+          ),
         );
         if (savedCurrentId) setCurrentSessionId(savedCurrentId);
       } catch (e) {
@@ -142,22 +144,6 @@ export function ChatContainer() {
       localStorage.removeItem(STORAGE_KEY_CURRENT_SESSION);
     }
   }, [currentSessionId]);
-
-  useEffect(() => {
-    if (apiKey) {
-      Cookies.set(STORAGE_KEY_API_KEY, apiKey, { expires: 365 });
-    } else {
-      Cookies.remove(STORAGE_KEY_API_KEY);
-    }
-  }, [apiKey]);
-
-  useEffect(() => {
-    Cookies.set(STORAGE_KEY_MODEL, model, { expires: 365 });
-  }, [model]);
-
-  useEffect(() => {
-    Cookies.set(STORAGE_KEY_SYSTEM_PHRASE, systemPhrase, { expires: 365 });
-  }, [systemPhrase]);
 
   useEffect(() => {
     if (scrollRef.current && !isAutoScrolling.current) {
@@ -224,8 +210,9 @@ export function ChatContainer() {
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      pinned: false,
     };
-    setSessions((prev) => [newSession, ...prev]);
+    setSessions((prev) => orderSessions([newSession, ...prev]));
     setCurrentSessionId(newSession.id);
     return newSession.id;
   }, []);
@@ -260,6 +247,54 @@ export function ChatContainer() {
     [currentSessionId],
   );
 
+  const handleTogglePinSession = useCallback((id: string) => {
+    setSessions((prev) =>
+      orderSessions(
+        prev.map((session) =>
+          session.id === id ? { ...session, pinned: !session.pinned } : session,
+        ),
+      ),
+    );
+  }, []);
+
+  const handleReorderSession = useCallback(
+    (sourceId: string, targetId: string) => {
+      if (sourceId === targetId) return;
+
+      setSessions((prev) => {
+        const updated = [...prev];
+        const sourceIndex = updated.findIndex((s) => s.id === sourceId);
+        const targetIndex = updated.findIndex((s) => s.id === targetId);
+
+        if (sourceIndex === -1 || targetIndex === -1) return prev;
+
+        const [moved] = updated.splice(sourceIndex, 1);
+        updated.splice(targetIndex, 0, moved);
+
+        return orderSessions(updated);
+      });
+    },
+    [],
+  );
+
+  const handleRenameSession = useCallback((id: string) => {
+    const newTitle = window.prompt('Rename chat');
+    if (!newTitle || !newTitle.trim()) return;
+    setSessions((prev) =>
+      orderSessions(
+        prev.map((session) =>
+          session.id === id
+            ? {
+                ...session,
+                title: clampChatTitle(newTitle),
+                updatedAt: new Date(),
+              }
+            : session,
+        ),
+      ),
+    );
+  }, []);
+
   const handleRegenerateResponse = useCallback(
     async (messageIndex: number) => {
       if (!apiKey || !currentSessionId) return;
@@ -282,11 +317,11 @@ export function ChatContainer() {
             ]
           : messagesUpToPoint;
 
-        const response = await sendMessage(messagesToSend, apiKey, model);
+        const newMessageId = crypto.randomUUID();
         const newMessage: Message = {
-          id: crypto.randomUUID(),
+          id: newMessageId,
           role: 'assistant',
-          content: response,
+          content: '',
           timestamp: new Date(),
         };
 
@@ -296,6 +331,47 @@ export function ChatContainer() {
               ? {
                   ...s,
                   messages: [...messagesUpToPoint, newMessage],
+                  updatedAt: new Date(),
+                }
+              : s,
+          ),
+        );
+
+        let accumulatedResponse = '';
+        const response = await sendMessage(
+          messagesToSend,
+          apiKey,
+          model,
+          (chunk) => {
+            accumulatedResponse += chunk;
+            setSessions((prev) =>
+              prev.map((s) => {
+                if (s.id === currentSessionId) {
+                  const updatedMessages = s.messages.map((m) =>
+                    m.id === newMessageId
+                      ? { ...m, content: accumulatedResponse }
+                      : m,
+                  );
+                  return {
+                    ...s,
+                    messages: updatedMessages,
+                    updatedAt: new Date(),
+                  };
+                }
+                return s;
+              }),
+            );
+          },
+        );
+
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === currentSessionId
+              ? {
+                  ...s,
+                  messages: s.messages.map((m) =>
+                    m.id === newMessageId ? { ...m, content: response } : m,
+                  ),
                   updatedAt: new Date(),
                 }
               : s,
@@ -350,11 +426,11 @@ export function ChatContainer() {
             ]
           : messagesUpToEdit;
 
-        const response = await sendMessage(messagesToSend, apiKey, model);
+        const assistantMessageId = crypto.randomUUID();
         const assistantMessage: Message = {
-          id: crypto.randomUUID(),
+          id: assistantMessageId,
           role: 'assistant',
-          content: response,
+          content: '',
           timestamp: new Date(),
         };
 
@@ -364,6 +440,49 @@ export function ChatContainer() {
               ? {
                   ...s,
                   messages: [...messagesUpToEdit, assistantMessage],
+                  updatedAt: new Date(),
+                }
+              : s,
+          ),
+        );
+
+        let accumulatedResponse = '';
+        const response = await sendMessage(
+          messagesToSend,
+          apiKey,
+          model,
+          (chunk) => {
+            accumulatedResponse += chunk;
+            setSessions((prev) =>
+              prev.map((s) => {
+                if (s.id === currentSessionId) {
+                  const updatedMessages = s.messages.map((m) =>
+                    m.id === assistantMessageId
+                      ? { ...m, content: accumulatedResponse }
+                      : m,
+                  );
+                  return {
+                    ...s,
+                    messages: updatedMessages,
+                    updatedAt: new Date(),
+                  };
+                }
+                return s;
+              }),
+            );
+          },
+        );
+
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === currentSessionId
+              ? {
+                  ...s,
+                  messages: s.messages.map((m) =>
+                    m.id === assistantMessageId
+                      ? { ...m, content: response }
+                      : m,
+                  ),
                   updatedAt: new Date(),
                 }
               : s,
@@ -399,10 +518,10 @@ export function ChatContainer() {
   const handleExportChat = useCallback(
     (format: 'markdown' | 'text' | 'json') => {
       if (currentSession) {
-        exportChat(currentSession, format);
+        exportChat(currentSession, format, aiName);
       }
     },
-    [currentSession],
+    [currentSession, aiName],
   );
 
   const handleSend = useCallback(
@@ -425,6 +544,7 @@ export function ChatContainer() {
           messages: [],
           createdAt: new Date(),
           updatedAt: new Date(),
+          pinned: false,
         };
         currentMessages = [];
         setCurrentSessionId(sessionId);
@@ -447,21 +567,22 @@ export function ChatContainer() {
             messages: [userMessage],
             updatedAt: new Date(),
           };
-          return [sessionWithMsg, ...prev];
+          return orderSessions([sessionWithMsg, ...prev]);
         }
-        return prev.map((s) =>
-          s.id === sessionId
-            ? {
-                ...s,
-                messages: newMessages,
-                title: s.messages.length === 0 ? 'New Chat' : s.title,
-                updatedAt: new Date(),
-              }
-            : s,
+        return orderSessions(
+          prev.map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  messages: newMessages,
+                  title: s.messages.length === 0 ? 'New Chat' : s.title,
+                  updatedAt: new Date(),
+                }
+              : s,
+          ),
         );
       });
 
-      // Asynchronously generate title for new chats.
       if (currentMessages.length === 0) {
         generateChatTitle(content, apiKey, model)
           .then((aiTitle) => {
@@ -481,12 +602,30 @@ export function ChatContainer() {
       setError(null);
 
       try {
-        let response: string;
-
         if (content.trim().toLowerCase().startsWith('/image')) {
           const prompt = content.trim().replace(/^\/image\s*/i, '');
           const imageUrl = await generateImage(prompt, apiKey);
-          response = `![${prompt}](${imageUrl})`;
+          const response = `![${prompt}](${imageUrl})`;
+
+          const assistantMessage: Message = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: response,
+            timestamp: new Date(),
+          };
+
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id === sessionId) {
+                return {
+                  ...s,
+                  messages: [...newMessages, assistantMessage],
+                  updatedAt: new Date(),
+                };
+              }
+              return s;
+            }),
+          );
         } else {
           const messagesToSend = systemPhrase
             ? [
@@ -500,28 +639,70 @@ export function ChatContainer() {
               ]
             : newMessages;
 
-          response = await sendMessage(messagesToSend, apiKey, model);
+          const assistantMessageId = crypto.randomUUID();
+          const assistantMessage: Message = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date(),
+          };
+
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id === sessionId) {
+                return {
+                  ...s,
+                  messages: [...newMessages, assistantMessage],
+                  updatedAt: new Date(),
+                };
+              }
+              return s;
+            }),
+          );
+
+          let accumulatedResponse = '';
+          const response = await sendMessage(
+            messagesToSend,
+            apiKey,
+            model,
+            (chunk) => {
+              accumulatedResponse += chunk;
+              setSessions((prev) =>
+                prev.map((s) => {
+                  if (s.id === sessionId) {
+                    const updatedMessages = s.messages.map((m) =>
+                      m.id === assistantMessageId
+                        ? { ...m, content: accumulatedResponse }
+                        : m,
+                    );
+                    return {
+                      ...s,
+                      messages: updatedMessages,
+                      updatedAt: new Date(),
+                    };
+                  }
+                  return s;
+                }),
+              );
+            },
+          );
+
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id === sessionId) {
+                const updatedMessages = s.messages.map((m) =>
+                  m.id === assistantMessageId ? { ...m, content: response } : m,
+                );
+                return {
+                  ...s,
+                  messages: updatedMessages,
+                  updatedAt: new Date(),
+                };
+              }
+              return s;
+            }),
+          );
         }
-
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: response,
-          timestamp: new Date(),
-        };
-
-        setSessions((prev) =>
-          prev.map((s) => {
-            if (s.id === sessionId) {
-              return {
-                ...s,
-                messages: [...newMessages, assistantMessage],
-                updatedAt: new Date(),
-              };
-            }
-            return s;
-          }),
-        );
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'An error occurred';
@@ -544,7 +725,7 @@ export function ChatContainer() {
     <div className="flex h-screen bg-background overflow-hidden relative">
       {isSidebarOpen && (
         <ChatSidebar
-          sessions={sessions}
+          sessions={orderedSessions}
           currentSessionId={currentSessionId}
           onSelectSession={(id) => {
             setCurrentSessionId(id);
@@ -555,6 +736,9 @@ export function ChatContainer() {
             if (window.innerWidth < 768) setIsSidebarOpen(false);
           }}
           onDeleteSession={deleteSession}
+          onReorderSession={handleReorderSession}
+          onTogglePin={handleTogglePinSession}
+          onRenameSession={handleRenameSession}
           onClose={() => setIsSidebarOpen(false)}
         />
       )}
@@ -576,7 +760,7 @@ export function ChatContainer() {
               <PanelLeft className="h-6 w-6" />
             </Button>
             <h1 className="text-xl font-semibold truncate">
-              {currentSession?.title || 'GLaDOS'}
+              {currentSession?.title || siteName}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -604,12 +788,6 @@ export function ChatContainer() {
             )}
             <ThemeToggle />
             <SettingsDialog
-              apiKey={apiKey}
-              setApiKey={setApiKey}
-              model={model}
-              setModel={setModel}
-              systemPhrase={systemPhrase}
-              setSystemPhrase={setSystemPhrase}
               open={isSettingsOpen}
               onOpenChange={setIsSettingsOpen}
             />
@@ -622,7 +800,7 @@ export function ChatContainer() {
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
                 <div className="text-center space-y-2">
                   <h2 className="text-2xl font-semibold text-foreground">
-                    Welcome to GLaDOS
+                    Welcome to {siteName}
                   </h2>
                   <p className="text-sm">
                     Select a chat or start a new one to begin
@@ -668,36 +846,56 @@ export function ChatContainer() {
                     )}
                   </div>
                 )}
-                {messages.map((message, index) => (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    onRegenerate={
-                      message.role === 'assistant' &&
-                      index === messages.length - 1
-                        ? () => handleRegenerateResponse(index)
-                        : undefined
-                    }
-                    onEdit={
-                      message.role === 'user'
-                        ? (content) => handleEditMessage(index, content)
-                        : undefined
-                    }
-                    onDelete={() => handleDeleteMessage(index)}
-                  />
-                ))}
+                {messages.map((message, index) => {
+                  const isLastMessage = index === messages.length - 1;
+                  const isLoadingAssistantMessage =
+                    isLastMessage &&
+                    message.role === 'assistant' &&
+                    isLoading &&
+                    !message.content;
+
+                  if (isLoadingAssistantMessage) {
+                    return null;
+                  }
+
+                  return (
+                    <ChatMessage
+                      key={message.id}
+                      message={message}
+                      onRegenerate={
+                        message.role === 'assistant' &&
+                        index === messages.length - 1
+                          ? () => handleRegenerateResponse(index)
+                          : undefined
+                      }
+                      onEdit={
+                        message.role === 'user'
+                          ? (content) => handleEditMessage(index, content)
+                          : undefined
+                      }
+                      onDelete={() => handleDeleteMessage(index)}
+                    />
+                  );
+                })}
               </div>
             )}
-            {isLoading && (
-              <div className="w-full bg-muted/50">
-                <div className="max-w-3xl flex items-center gap-3 p-4 w-full">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                    <div className="animate-pulse">●</div>
+            {isLoading &&
+              (!messages.length ||
+                messages[messages.length - 1].role !== 'assistant' ||
+                !messages[messages.length - 1].content) && (
+                <div className="group w-full p-4">
+                  <div className="max-w-full flex gap-3 w-full lg:pr-48">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-primary text-primary-foreground">
+                      <Terminal className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 space-y-2 min-w-0">
+                      <div className="prose prose-sm dark:prose-invert inline-block w-fit max-w-[85%] leading-relaxed wrap-break-word p-4 rounded-2xl shadow-sm bg-card text-card-foreground border">
+                        <p className="mb-0 animate-pulse">Thinking...</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-muted-foreground">Thinking...</div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </ScrollArea>
 
@@ -707,7 +905,11 @@ export function ChatContainer() {
           </div>
         )}
 
-        <ChatInput onSend={handleSend} isLoading={isLoading} />
+        <ChatInput
+          onSend={handleSend}
+          isLoading={isLoading}
+          placeholder={`Ask ${aiName}`}
+        />
       </div>
     </div>
   );

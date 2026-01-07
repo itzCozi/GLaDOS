@@ -7,8 +7,9 @@ export class GrokAdapter implements AIProviderAdapter {
     messages: Message[],
     apiKey: string,
     model: string,
+    onChunk?: (chunk: string) => void,
   ): Promise<string> {
-    return sendMessage(messages, apiKey, model);
+    return sendMessage(messages, apiKey, model, onChunk);
   }
 
   async generateImage(

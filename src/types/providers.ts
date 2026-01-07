@@ -7,6 +7,7 @@ export interface AIProviderAdapter {
     messages: Message[],
     apiKey: string,
     model: string,
+    onChunk?: (chunk: string) => void,
   ): Promise<string>;
 
   generateImage?(

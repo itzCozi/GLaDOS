@@ -12,6 +12,7 @@ export interface ChatSession {
   messages: Message[];
   createdAt: Date;
   updatedAt: Date;
+  pinned?: boolean;
 }
 
 export interface ChatState {
