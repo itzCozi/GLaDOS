@@ -96,7 +96,7 @@ export async function generateChatTitle(
   message: string,
   apiKey: string,
 ): Promise<string> {
-  const prompt = `Generate a very short, concise title (max 4-5 words, under 32 chars) for the following user message. Do not use quotes or punctuation. Ensure words are separated by spaces. return ONLY the title. EX: Closest Gas Station, Best Online Marketplace, Easy Dinner Recipes
+  const prompt = `Generate a very short, concise title (max 4-5 words, under 30 chars) for the following user message. Do not use quotes or punctuation. Ensure words are separated by spaces. return ONLY the title. EX: Closest Gas Station, Best Online Marketplace, Easy Dinner Recipes
   
   User message: "${message}"`;
 
@@ -108,7 +108,7 @@ export async function generateChatTitle(
       },
       { role: "user", content: prompt },
     ],
-    model: "grok-3-mini",
+    model: "grok-4-1-fast-reasoning",
     stream: false,
   };
 

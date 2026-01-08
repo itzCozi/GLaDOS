@@ -19,23 +19,47 @@ const DEFAULTS = {
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [apiKey, setApiKeyState] = useState(
-    () => localStorage.getItem(STORAGE_KEYS.API_KEY) || "",
-  );
+  const [apiKey, setApiKeyState] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get("apikey") || localStorage.getItem(STORAGE_KEYS.API_KEY) || ""
+    );
+  });
   const [model, setModelState] = useState(
     () => localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULTS.MODEL,
   );
-  const [systemPhrase, setSystemPhraseState] = useState(
-    () =>
+  const [aiName, setAiNameState] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get("name") ||
+      localStorage.getItem(STORAGE_KEYS.AI_NAME) ||
+      DEFAULTS.AI_NAME
+    );
+  });
+  const [systemPhrase, setSystemPhraseState] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlAiName = params.get("name");
+    let phrase =
       localStorage.getItem(STORAGE_KEYS.SYSTEM_PHRASE) ||
-      DEFAULTS.SYSTEM_PHRASE,
-  );
-  const [aiName, setAiNameState] = useState(
-    () => localStorage.getItem(STORAGE_KEYS.AI_NAME) || DEFAULTS.AI_NAME,
-  );
-  const [siteName, setSiteNameState] = useState(
-    () => localStorage.getItem(STORAGE_KEYS.SITE_NAME) || DEFAULTS.SITE_NAME,
-  );
+      DEFAULTS.SYSTEM_PHRASE;
+
+    if (urlAiName) {
+      const storedAiName =
+        localStorage.getItem(STORAGE_KEYS.AI_NAME) || DEFAULTS.AI_NAME;
+      if (storedAiName && phrase.includes(storedAiName)) {
+        phrase = phrase.split(storedAiName).join(urlAiName);
+      }
+    }
+    return phrase;
+  });
+  const [siteName, setSiteNameState] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get("site") ||
+      localStorage.getItem(STORAGE_KEYS.SITE_NAME) ||
+      DEFAULTS.SITE_NAME
+    );
+  });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
@@ -57,28 +81,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.SITE_NAME, siteName);
     document.title = siteName;
   }, [siteName]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlApiKey = params.get("apikey");
-    const urlAiName = params.get("name");
-    const urlSiteName = params.get("site");
-
-    if (urlApiKey) {
-      setApiKeyState(urlApiKey);
-    }
-
-    if (urlSiteName) {
-      setSiteNameState(urlSiteName);
-    }
-
-    if (urlAiName) {
-      if (aiName && systemPhrase.includes(aiName)) {
-        setSystemPhraseState((prev) => prev.split(aiName).join(urlAiName));
-      }
-      setAiNameState(urlAiName);
-    }
-  }, []); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleSetAiName = (newName: string) => {
     if (aiName && newName && systemPhrase.includes(aiName)) {

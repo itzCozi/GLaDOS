@@ -8,7 +8,7 @@ import { RenameDialog } from "./RenameDialog";
 import { sendMessage, generateImage, generateChatTitle } from "@/services/grok";
 import { exportChat } from "@/lib/export";
 import type { Message, ChatSession } from "@/types/chat";
-import { PanelLeft, Download } from "lucide-react";
+import { PanelLeft, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -72,11 +72,20 @@ export function ChatContainer() {
     }
     return true;
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [generatingSessionId, setGeneratingSessionId] = useState<string | null>(
-    null,
+  const [generatingSessionIds, setGeneratingSessionIds] = useState<Set<string>>(
+    new Set(),
   );
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      const timeout = setTimeout(() => {
+        setError(null);
+      }, 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [error]);
+
   const { apiKey, model, systemPhrase, aiName, siteName } = useSettings();
   const [visibleMessagesCount, setVisibleMessagesCount] = useState<
     Record<string, number>
@@ -368,10 +377,15 @@ export function ChatContainer() {
     async (messageIndex: number) => {
       if (!apiKey || !currentSessionId) return;
 
+      const sessionId = currentSessionId;
       const actualIndex = allMessages.length - messages.length + messageIndex;
       const messagesUpToPoint = allMessages.slice(0, actualIndex);
-      setIsLoading(true);
-      setGeneratingSessionId(currentSessionId);
+
+      setGeneratingSessionIds((prev) => {
+        const next = new Set(prev);
+        next.add(sessionId);
+        return next;
+      });
       setError(null);
 
       try {
@@ -397,7 +411,7 @@ export function ChatContainer() {
 
         setSessions((prev) =>
           prev.map((s) =>
-            s.id === currentSessionId
+            s.id === sessionId
               ? {
                   ...s,
                   messages: [...messagesUpToPoint, newMessage],
@@ -416,7 +430,7 @@ export function ChatContainer() {
             accumulatedResponse += chunk;
             setSessions((prev) =>
               prev.map((s) => {
-                if (s.id === currentSessionId) {
+                if (s.id === sessionId) {
                   const updatedMessages = s.messages.map((m) =>
                     m.id === newMessageId
                       ? { ...m, content: accumulatedResponse }
@@ -436,7 +450,7 @@ export function ChatContainer() {
 
         setSessions((prev) =>
           prev.map((s) =>
-            s.id === currentSessionId
+            s.id === sessionId
               ? {
                   ...s,
                   messages: s.messages.map((m) =>
@@ -452,8 +466,11 @@ export function ChatContainer() {
           err instanceof Error ? err.message : "Failed to regenerate";
         setError(errorMessage);
       } finally {
-        setIsLoading(false);
-        setGeneratingSessionId(null);
+        setGeneratingSessionIds((prev) => {
+          const next = new Set(prev);
+          next.delete(sessionId);
+          return next;
+        });
       }
     },
     [apiKey, currentSessionId, allMessages, messages, model, systemPhrase],
@@ -558,8 +575,11 @@ export function ChatContainer() {
           .catch(console.error);
       }
 
-      setIsLoading(true);
-      setGeneratingSessionId(sessionId);
+      setGeneratingSessionIds((prev) => {
+        const next = new Set(prev);
+        next.add(sessionId);
+        return next;
+      });
       setError(null);
 
       try {
@@ -669,8 +689,11 @@ export function ChatContainer() {
           err instanceof Error ? err.message : "An error occurred";
         setError(errorMessage);
       } finally {
-        setIsLoading(false);
-        setGeneratingSessionId(null);
+        setGeneratingSessionIds((prev) => {
+          const next = new Set(prev);
+          next.delete(sessionId);
+          return next;
+        });
       }
     },
     [apiKey, currentSessionId, allMessages, model, systemPhrase],
@@ -813,7 +836,8 @@ export function ChatContainer() {
                   const isLoadingAssistantMessage =
                     isLastMessage &&
                     message.role === "assistant" &&
-                    isLoading &&
+                    currentSessionId &&
+                    generatingSessionIds.has(currentSessionId) &&
                     !message.content;
 
                   if (isLoadingAssistantMessage) {
@@ -837,8 +861,8 @@ export function ChatContainer() {
                 })}
               </div>
             )}
-            {isLoading &&
-              generatingSessionId === currentSessionId &&
+            {currentSessionId &&
+              generatingSessionIds.has(currentSessionId) &&
               (!messages.length ||
                 messages[messages.length - 1].role !== "assistant" ||
                 !messages[messages.length - 1].content) && (
@@ -849,7 +873,7 @@ export function ChatContainer() {
                     }`}
                   >
                     <div className="w-full space-y-2 min-w-0">
-                      <div className="prose prose-sm dark:prose-invert inline-block w-fit md:max-w-[90%] max-w-[92vw] leading-relaxed wrap-break-word px-4 py-3 rounded-[20px] rounded-bl-none shadow-sm bg-secondary text-secondary-foreground">
+                      <div className="prose prose-sm dark:prose-invert inline-block w-fit md:max-w-[90%] max-w-[92vw] leading-relaxed wrap-break-word px-4 py-3 rounded-[20px] rounded-bl-sm shadow-sm bg-secondary text-secondary-foreground">
                         <div
                           className="flex items-center gap-1 min-h-5"
                           aria-label="Assistant is typing"
@@ -872,14 +896,24 @@ export function ChatContainer() {
         </ScrollArea>
 
         {error && (
-          <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm">
-            {error}
+          <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm flex items-center justify-between gap-2">
+            <span>{error}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-destructive/20 text-destructive shrink-0"
+              onClick={() => setError(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
         <ChatInput
           onSend={handleSend}
-          isLoading={isLoading}
+          isLoading={
+            !!currentSessionId && generatingSessionIds.has(currentSessionId)
+          }
           placeholder={`Ask ${aiName}`}
         />
       </div>

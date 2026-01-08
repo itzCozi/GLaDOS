@@ -129,7 +129,7 @@ export function ChatSidebar({
   };
 
   return (
-    <div className="w-full md:w-72 flex flex-col h-full bg-background md:bg-muted/30 border-r border-border absolute z-50 md:relative md:z-0">
+    <div className="w-full md:w-72 flex flex-col h-full bg-background md:bg-muted/30 md:border-r border-border absolute z-50 md:relative md:z-0">
       <div className="flex items-center justify-between p-4 pb-2 md:hidden">
         <h2 className="font-semibold text-lg">Chats</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -179,7 +179,7 @@ export function ChatSidebar({
                 ) : (
                   <MessageSquare className="h-4 w-4 shrink-0" />
                 )}
-                <span className="truncate">{session.title}</span>
+                <span className="">{session.title}</span>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
