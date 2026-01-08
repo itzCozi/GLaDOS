@@ -1,6 +1,6 @@
-import type { Message } from './chat';
+import type { Message } from "./chat";
 
-export type AIProvider = 'grok';
+export type AIProvider = "grok";
 
 export interface AIProviderAdapter {
   sendMessage(
@@ -18,7 +18,7 @@ export interface AIProviderAdapter {
 }
 
 export const PROVIDER_MODELS: Record<AIProvider, string[]> = {
-  grok: ['grok-4', 'grok-4-1-fast', 'grok-3', 'grok-3-mini'],
+  grok: ["grok-4", "grok-4-1-fast", "grok-3", "grok-3-mini"],
 };
 
 export const PROVIDER_INFO: Record<
@@ -32,9 +32,9 @@ export const PROVIDER_INFO: Record<
   }
 > = {
   grok: {
-    name: 'xAI Grok',
-    description: 'Grok 3 and Grok 2 Vision models',
-    apiKeyUrl: 'https://console.x.ai',
+    name: "xAI Grok",
+    description: "Grok 3 and Grok 2 Vision models",
+    apiKeyUrl: "https://console.x.ai",
     requiresApiKey: true,
     supportsImages: true,
   },

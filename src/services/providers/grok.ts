@@ -1,6 +1,6 @@
-import { sendMessage, generateImage } from '../grok';
-import type { AIProviderAdapter } from '../../types/providers';
-import type { Message } from '../../types/chat';
+import { sendMessage, generateImage } from "../grok";
+import type { AIProviderAdapter } from "../../types/providers";
+import type { Message } from "../../types/chat";
 
 export class GrokAdapter implements AIProviderAdapter {
   async sendMessage(

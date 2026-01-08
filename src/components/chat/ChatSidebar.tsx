@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import type { ChatSession } from '@/types/chat';
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ChatSession } from "@/types/chat";
 import {
   Plus,
   MessageSquare,
@@ -11,15 +11,15 @@ import {
   Pin,
   PinOff,
   Pencil,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useMemo, useState } from 'react';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useMemo, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 
 interface ChatSidebarProps {
   sessions: ChatSession[];
@@ -44,7 +44,7 @@ export function ChatSidebar({
   onRenameSession,
   onClose,
 }: ChatSidebarProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -160,15 +160,15 @@ export function ChatSidebar({
               onDrop={(e) => handleDrop(session.id, e)}
               onDragEnd={handleDragEnd}
               className={cn(
-                'group flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors duration-200 cursor-pointer hover:bg-accent hover:text-accent-foreground border border-transparent',
+                "group flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors duration-200 cursor-pointer hover:bg-accent hover:text-accent-foreground border border-transparent",
                 currentSessionId === session.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground',
-                draggingId === session.id ? 'opacity-70 cursor-grabbing' : '',
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground",
+                draggingId === session.id ? "opacity-70 cursor-grabbing" : "",
                 dragOverId === session.id
-                  ? 'border-primary/60 bg-accent/60'
-                  : '',
-                !dragEnabled ? 'cursor-default' : '',
+                  ? "border-primary/60 bg-accent/60"
+                  : "",
+                !dragEnabled ? "cursor-default" : "",
               )}
               title={session.title}
               onClick={() => onSelectSession(session.id)}
@@ -215,7 +215,7 @@ export function ChatSidebar({
                     ) : (
                       <Pin className="h-4 w-4 mr-2" />
                     )}
-                    {session.pinned ? 'Unpin' : 'Pin'}
+                    {session.pinned ? "Unpin" : "Pin"}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"

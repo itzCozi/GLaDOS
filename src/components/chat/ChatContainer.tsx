@@ -1,38 +1,46 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChatMessage } from './ChatMessage';
-import { ChatInput } from './ChatInput';
-import { ChatSidebar } from './ChatSidebar';
-import { SettingsDialog } from './SettingsDialog.tsx';
-import { RenameDialog } from './RenameDialog';
-import { sendMessage, generateImage, generateChatTitle } from '@/services/grok';
-import { exportChat } from '@/lib/export';
-import type { Message, ChatSession } from '@/types/chat';
-import { PanelLeft, Download, Terminal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChatMessage } from "./ChatMessage";
+import { ChatInput } from "./ChatInput";
+import { ChatSidebar } from "./ChatSidebar";
+import { SettingsDialog } from "./SettingsDialog.tsx";
+import { RenameDialog } from "./RenameDialog";
+import { sendMessage, generateImage, generateChatTitle } from "@/services/grok";
+import { exportChat } from "@/lib/export";
+import type { Message, ChatSession } from "@/types/chat";
+import { PanelLeft, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useSettings } from '@/lib/settings-store';
+} from "@/components/ui/dropdown-menu";
+import { useSettings } from "@/lib/settings-store";
 
-const STORAGE_KEY_SESSIONS = 'glados-sessions';
-const STORAGE_KEY_CURRENT_SESSION = 'glados-current-session';
+const STORAGE_KEY_SESSIONS = "glados-sessions";
+const STORAGE_KEY_CURRENT_SESSION = "glados-current-session";
 
 const MESSAGES_PER_PAGE = 20;
 
 const MAX_CHAT_TITLE_LENGTH = 24;
 
-interface SerializedMessage extends Omit<Message, 'timestamp'> {
+function normalizeTitleSpacing(title: string): string {
+  const withSpaces = title
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
+  return withSpaces.replace(/\s+/g, " ").trim();
+}
+
+interface SerializedMessage extends Omit<Message, "timestamp"> {
   timestamp: string;
 }
 
 interface SerializedChatSession extends Omit<
   ChatSession,
-  'createdAt' | 'updatedAt' | 'messages'
+  "createdAt" | "updatedAt" | "messages"
 > {
   createdAt: string;
   updatedAt: string;
@@ -43,8 +51,8 @@ function clampChatTitle(
   title: string,
   maxLength = MAX_CHAT_TITLE_LENGTH,
 ): string {
-  const normalized = title.trim().replace(/\s+/g, ' ');
-  if (!normalized) return 'New Chat';
+  const normalized = normalizeTitleSpacing(title);
+  if (!normalized) return "New Chat";
   if (normalized.length <= maxLength) return normalized;
   return normalized.slice(0, maxLength).trimEnd();
 }
@@ -59,7 +67,7 @@ export function ChatContainer() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       return window.innerWidth >= 768;
     }
     return true;
@@ -82,8 +90,11 @@ export function ChatContainer() {
     images: string[];
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const isUserNearBottom = useRef(true);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const isAutoScrolling = useRef(false);
+  const prevSessionId = useRef<string | null>(null);
 
   const currentSession = useMemo(
     () => sessions.find((s) => s.id === currentSessionId),
@@ -131,7 +142,7 @@ export function ChatContainer() {
         );
         if (savedCurrentId) setCurrentSessionId(savedCurrentId);
       } catch (e) {
-        console.error('Failed to parse sessions', e);
+        console.error("Failed to parse sessions", e);
       }
     }
     setIsInitialized(true);
@@ -150,12 +161,55 @@ export function ChatContainer() {
     }
   }, [currentSessionId]);
 
-  useEffect(() => {
-    if (scrollRef.current && !isAutoScrolling.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const updateViewportRef = useCallback(() => {
+    if (!scrollRef.current) return;
+    const viewport = scrollRef.current.closest(
+      "[data-radix-scroll-area-viewport]",
+    ) as HTMLDivElement | null;
+    if (viewport) {
+      viewportRef.current = viewport;
     }
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const viewport = viewportRef.current;
+    if (!viewport || !scrollRef.current) return;
+    const targetTop = scrollRef.current.scrollHeight - viewport.clientHeight;
+    viewport.scrollTo({ top: targetTop, behavior });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !scrollRef.current) return;
+    const distanceFromBottom =
+      scrollRef.current.scrollHeight -
+      (viewport.scrollTop + viewport.clientHeight);
+    isUserNearBottom.current = distanceFromBottom < 160;
+  }, []);
+
+  useEffect(() => {
+    updateViewportRef();
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, [handleScroll, updateViewportRef]);
+
+  useEffect(() => {
+    updateViewportRef();
+    const isNewSession = prevSessionId.current !== currentSessionId;
+    const shouldScroll = isAutoScrolling.current
+      ? false
+      : isNewSession || isUserNearBottom.current;
+
+    if (shouldScroll) {
+      scrollToBottom(isNewSession ? "auto" : "smooth");
+    }
+
     isAutoScrolling.current = false;
-  }, [messages.length, currentSessionId]);
+    prevSessionId.current = currentSessionId;
+  }, [messages, currentSessionId, scrollToBottom, updateViewportRef]);
 
   useEffect(() => {
     if (currentSessionId && !visibleMessagesCount[currentSessionId]) {
@@ -172,8 +226,10 @@ export function ChatContainer() {
     setIsLoadingMore(true);
     isAutoScrolling.current = true;
 
-    const scrollElement = scrollRef.current;
-    const previousScrollHeight = scrollElement?.scrollHeight || 0;
+    const viewport = viewportRef.current;
+    const content = scrollRef.current;
+    const previousScrollHeight = content?.scrollHeight || 0;
+    const previousScrollTop = viewport?.scrollTop || 0;
 
     setTimeout(() => {
       setVisibleMessagesCount((prev) => ({
@@ -183,9 +239,10 @@ export function ChatContainer() {
       }));
 
       setTimeout(() => {
-        if (scrollElement) {
-          const newScrollHeight = scrollElement.scrollHeight;
-          scrollElement.scrollTop = newScrollHeight - previousScrollHeight;
+        if (viewport && content) {
+          const newScrollHeight = content.scrollHeight;
+          const heightDelta = newScrollHeight - previousScrollHeight;
+          viewport.scrollTop = previousScrollTop + heightDelta;
         }
         setIsLoadingMore(false);
       }, 0);
@@ -211,7 +268,7 @@ export function ChatContainer() {
   const createNewChat = useCallback(() => {
     const newSession: ChatSession = {
       id: crypto.randomUUID(),
-      title: 'New Chat',
+      title: "New Chat",
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -224,21 +281,21 @@ export function ChatContainer() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         createNewChat();
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         e.preventDefault();
         setIsSidebarOpen(true);
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
         setIsSidebarOpen(!isSidebarOpen);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSidebarOpen, createNewChat]);
 
   const deleteSession = useCallback(
@@ -321,8 +378,8 @@ export function ChatContainer() {
         const messagesToSend = systemPhrase
           ? [
               {
-                id: 'system',
-                role: 'system' as const,
+                id: "system",
+                role: "system" as const,
                 content: systemPhrase,
                 timestamp: new Date(),
               },
@@ -333,8 +390,8 @@ export function ChatContainer() {
         const newMessageId = crypto.randomUUID();
         const newMessage: Message = {
           id: newMessageId,
-          role: 'assistant',
-          content: '',
+          role: "assistant",
+          content: "",
           timestamp: new Date(),
         };
 
@@ -350,7 +407,7 @@ export function ChatContainer() {
           ),
         );
 
-        let accumulatedResponse = '';
+        let accumulatedResponse = "";
         const response = await sendMessage(
           messagesToSend,
           apiKey,
@@ -392,7 +449,7 @@ export function ChatContainer() {
         );
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : 'Failed to regenerate';
+          err instanceof Error ? err.message : "Failed to regenerate";
         setError(errorMessage);
       } finally {
         setIsLoading(false);
@@ -419,7 +476,7 @@ export function ChatContainer() {
   );
 
   const handleExportChat = useCallback(
-    (format: 'markdown' | 'text' | 'json') => {
+    (format: "markdown" | "text" | "json") => {
       if (currentSession) {
         exportChat(currentSession, format, aiName);
       }
@@ -443,7 +500,7 @@ export function ChatContainer() {
         sessionId = crypto.randomUUID();
         newSession = {
           id: sessionId,
-          title: 'New Chat',
+          title: "New Chat",
           messages: [],
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -455,7 +512,7 @@ export function ChatContainer() {
 
       const userMessage: Message = {
         id: crypto.randomUUID(),
-        role: 'user',
+        role: "user",
         content,
         images: images.length > 0 ? images : undefined,
         timestamp: new Date(),
@@ -478,7 +535,7 @@ export function ChatContainer() {
               ? {
                   ...s,
                   messages: newMessages,
-                  title: s.messages.length === 0 ? 'New Chat' : s.title,
+                  title: s.messages.length === 0 ? "New Chat" : s.title,
                   updatedAt: new Date(),
                 }
               : s,
@@ -506,14 +563,14 @@ export function ChatContainer() {
       setError(null);
 
       try {
-        if (content.trim().toLowerCase().startsWith('/image')) {
-          const prompt = content.trim().replace(/^\/image\s*/i, '');
+        if (content.trim().toLowerCase().startsWith("/image")) {
+          const prompt = content.trim().replace(/^\/image\s*/i, "");
           const imageUrl = await generateImage(prompt, apiKey);
           const response = `![${prompt}](${imageUrl})`;
 
           const assistantMessage: Message = {
             id: crypto.randomUUID(),
-            role: 'assistant',
+            role: "assistant",
             content: response,
             timestamp: new Date(),
           };
@@ -534,8 +591,8 @@ export function ChatContainer() {
           const messagesToSend = systemPhrase
             ? [
                 {
-                  id: 'system',
-                  role: 'system' as const,
+                  id: "system",
+                  role: "system" as const,
                   content: systemPhrase,
                   timestamp: new Date(),
                 },
@@ -546,8 +603,8 @@ export function ChatContainer() {
           const assistantMessageId = crypto.randomUUID();
           const assistantMessage: Message = {
             id: assistantMessageId,
-            role: 'assistant',
-            content: '',
+            role: "assistant",
+            content: "",
             timestamp: new Date(),
           };
 
@@ -564,7 +621,7 @@ export function ChatContainer() {
             }),
           );
 
-          let accumulatedResponse = '';
+          let accumulatedResponse = "";
           const response = await sendMessage(
             messagesToSend,
             apiKey,
@@ -609,7 +666,7 @@ export function ChatContainer() {
         }
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : 'An error occurred';
+          err instanceof Error ? err.message : "An error occurred";
         setError(errorMessage);
       } finally {
         setIsLoading(false);
@@ -658,8 +715,8 @@ export function ChatContainer() {
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               title={
                 isSidebarOpen
-                  ? 'Close sidebar (Ctrl+B)'
-                  : 'Open sidebar (Ctrl+B)'
+                  ? "Close sidebar (Ctrl+B)"
+                  : "Open sidebar (Ctrl+B)"
               }
             >
               <PanelLeft className="h-6 w-6" />
@@ -678,14 +735,14 @@ export function ChatContainer() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onClick={() => handleExportChat('markdown')}
+                    onClick={() => handleExportChat("markdown")}
                   >
                     Export as Markdown
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportChat('text')}>
+                  <DropdownMenuItem onClick={() => handleExportChat("text")}>
                     Export as Text
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportChat('json')}>
+                  <DropdownMenuItem onClick={() => handleExportChat("json")}>
                     Export as JSON
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -716,7 +773,7 @@ export function ChatContainer() {
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
                 <div className="text-center space-y-2">
                   <h2 className="text-2xl font-semibold text-foreground">
-                    {currentSession?.title || 'New Chat'}
+                    {currentSession?.title || "New Chat"}
                   </h2>
                   <p className="text-sm">
                     Start a conversation, paste images, or share code snippets
@@ -741,11 +798,11 @@ export function ChatContainer() {
                         onClick={loadMoreMessages}
                         className="text-muted-foreground hover:text-foreground"
                       >
-                        Load{' '}
+                        Load{" "}
                         {Math.min(
                           MESSAGES_PER_PAGE,
                           allMessages.length - currentVisibleCount,
-                        )}{' '}
+                        )}{" "}
                         older messages
                       </Button>
                     )}
@@ -755,7 +812,7 @@ export function ChatContainer() {
                   const isLastMessage = index === messages.length - 1;
                   const isLoadingAssistantMessage =
                     isLastMessage &&
-                    message.role === 'assistant' &&
+                    message.role === "assistant" &&
                     isLoading &&
                     !message.content;
 
@@ -768,7 +825,7 @@ export function ChatContainer() {
                       key={message.id}
                       message={message}
                       onRegenerate={
-                        message.role === 'assistant' &&
+                        message.role === "assistant" &&
                         index === messages.length - 1
                           ? () => handleRegenerateResponse(index)
                           : undefined
@@ -783,20 +840,29 @@ export function ChatContainer() {
             {isLoading &&
               generatingSessionId === currentSessionId &&
               (!messages.length ||
-                messages[messages.length - 1].role !== 'assistant' ||
+                messages[messages.length - 1].role !== "assistant" ||
                 !messages[messages.length - 1].content) && (
                 <div className="group w-full p-4">
                   <div
-                    className={`max-w-full flex gap-3 w-full mx-auto lg:pr-48 ${
-                      !isSidebarOpen ? 'md:max-w-7xl' : 'md:max-w-6xl'
+                    className={`max-w-full w-full mx-auto lg:pr-48 ${
+                      !isSidebarOpen ? "md:max-w-7xl" : "md:max-w-6xl"
                     }`}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-primary text-primary-foreground">
-                      <Terminal className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 space-y-2 min-w-0">
-                      <div className="prose prose-sm dark:prose-invert inline-block w-fit max-w-[85%] leading-relaxed wrap-break-word p-4 rounded-2xl shadow-sm bg-card text-card-foreground border">
-                        <p className="mb-0 animate-pulse">Thinking...</p>
+                    <div className="w-full space-y-2 min-w-0">
+                      <div className="prose prose-sm dark:prose-invert inline-block w-fit md:max-w-[90%] max-w-[92vw] leading-relaxed wrap-break-word px-4 py-3 rounded-[20px] rounded-bl-none shadow-sm bg-secondary text-secondary-foreground">
+                        <div
+                          className="flex items-center gap-1 min-h-5"
+                          aria-label="Assistant is typing"
+                        >
+                          {Array.from({ length: 3 }).map((_, index) => (
+                            <span
+                              key={index}
+                              className="typing-dot animate-typing-dot"
+                              style={{ animationDelay: `${index * 0.15}s` }}
+                            />
+                          ))}
+                          <span className="sr-only">Assistant is typing</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -822,7 +888,7 @@ export function ChatContainer() {
           open={!!renameSessionId}
           onOpenChange={(open) => !open && setRenameSessionId(null)}
           currentTitle={
-            sessions.find((s) => s.id === renameSessionId)?.title || ''
+            sessions.find((s) => s.id === renameSessionId)?.title || ""
           }
           onRename={handleRenameConfirm}
         />

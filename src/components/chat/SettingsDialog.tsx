@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,18 +7,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, Settings } from 'lucide-react';
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChevronDown, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { PROVIDER_INFO, PROVIDER_MODELS } from '../../types/providers';
-import { useSettings } from '@/lib/settings-store';
+} from "@/components/ui/dropdown-menu";
+import { PROVIDER_INFO, PROVIDER_MODELS } from "../../types/providers";
+import { useSettings } from "@/lib/settings-store";
 
 interface SettingsDialogProps {
   open?: boolean;
@@ -50,8 +50,8 @@ export function SettingsDialog({
     propOnOpenChange?.(newOpen);
   };
 
-  const providerInfo = PROVIDER_INFO['grok'];
-  const availableModels = PROVIDER_MODELS['grok'];
+  const providerInfo = PROVIDER_INFO["grok"];
+  const availableModels = PROVIDER_MODELS["grok"];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -121,7 +121,7 @@ export function SettingsDialog({
                 className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Get your API key from{' '}
+                Get your API key from{" "}
                 <a
                   href={providerInfo.apiKeyUrl}
                   target="_blank"
@@ -151,16 +151,16 @@ export function SettingsDialog({
                           variant="outline"
                           className="w-full justify-between"
                         >
-                          {model || 'Select a model'}
+                          {model || "Select a model"}
                           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="max-h-75 overflow-y-auto min-w-(--radix-dropdown-menu-trigger-width) w-full">
                         <DropdownMenuRadioGroup
-                          value={isCustom ? 'custom_option' : model}
+                          value={isCustom ? "custom_option" : model}
                           onValueChange={(val) => {
-                            if (val === 'custom_option') {
-                              setModel('');
+                            if (val === "custom_option") {
+                              setModel("");
                             } else {
                               setModel(val);
                             }

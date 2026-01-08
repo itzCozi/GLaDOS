@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { ThemeContext, type Theme } from '@/lib/theme-context';
+import { useEffect, useState } from "react";
+import { ThemeContext, type Theme } from "@/lib/theme-context";
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'system',
-  storageKey = 'glados-theme',
+  defaultTheme = "system",
+  storageKey = "glados-theme",
 }: {
   children: React.ReactNode;
   defaultTheme?: Theme;
@@ -16,13 +16,13 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
+    root.classList.remove("light", "dark");
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+    if (theme === "system") {
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
         .matches
-        ? 'dark'
-        : 'light';
+        ? "dark"
+        : "light";
       root.classList.add(systemTheme);
       return;
     }
