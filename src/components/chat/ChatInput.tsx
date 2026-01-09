@@ -169,13 +169,8 @@ export function ChatInput({
     setImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const safePaddingBottom = "calc(env(safe-area-inset-bottom, 0px) + 12px)";
-
   return (
-    <div
-      className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4"
-      style={{ paddingBottom: safePaddingBottom }}
-    >
+    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] md:pb-3">
       {(images.length > 0 || attachedFiles.length > 0) && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((image, index) => (
@@ -276,7 +271,7 @@ export function ChatInput({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "min-h-8 max-h-35 w-full resize-none border-0 bg-transparent px-2 py-1 shadow-none focus-visible:ring-0",
+            "min-h-8 max-h-35 w-full resize-none border-0 bg-transparent px-2 py-1 shadow-none focus-visible:ring-0 text-base md:text-sm",
           )}
           rows={1}
         />
