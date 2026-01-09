@@ -171,7 +171,7 @@ export function ChatInput({
 
   {/* Mobile padding for PWA */}
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.8rem)] md:pb-3">
+    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.7rem)] md:pb-3">
       {(images.length > 0 || attachedFiles.length > 0) && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((image, index) => (
