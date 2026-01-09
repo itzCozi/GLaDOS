@@ -169,8 +169,9 @@ export function ChatInput({
     setImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  {/* Mobile padding for PWA */}
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] md:pb-3">
+    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.8rem)] md:pb-3">
       {(images.length > 0 || attachedFiles.length > 0) && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((image, index) => (
@@ -205,7 +206,7 @@ export function ChatInput({
           ))}
         </div>
       )}
-      <div className="relative flex items-center w-full p-2 border rounded-xl bg-muted/50 shadow-sm focus-within:ring-1 focus-within:ring-ring gap-2">
+      <div className="relative flex items-center w-full p-2 border rounded-xl bg-muted/50 focus-within:ring-1 focus-within:ring-ring gap-2">
         <input
           type="file"
           ref={imageInputRef}
