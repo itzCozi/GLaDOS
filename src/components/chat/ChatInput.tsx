@@ -17,17 +17,19 @@ import {
   Send,
   ImagePlus,
   X,
-  Loader2,
   FileText,
   Paperclip,
   Sparkles,
   Upload,
   MoreHorizontal,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { readPdfText } from "@/lib/pdf-utils";
 
 interface ChatInputProps {
   onSend: (message: string, images: string[]) => void;
+  onStop?: () => void;
   isLoading: boolean;
   disabled?: boolean;
   initialPrompt?: string;
@@ -36,6 +38,7 @@ interface ChatInputProps {
 
 export function ChatInput({
   onSend,
+  onStop,
   isLoading,
   disabled,
   initialPrompt,
@@ -119,7 +122,7 @@ export function ChatInput({
       const files = e.target.files;
       if (!files) return;
 
-      Array.from(files).forEach((file) => {
+      Array.from(files).forEach(async (file) => {
         if (file.type.startsWith("image/")) {
           const reader = new FileReader();
           reader.onload = (event) => {
@@ -127,6 +130,19 @@ export function ChatInput({
             setImages((prev) => [...prev, base64]);
           };
           reader.readAsDataURL(file);
+        } else if (
+          file.type === "application/pdf" ||
+          file.name.endsWith(".pdf")
+        ) {
+          try {
+            const text = await readPdfText(file);
+            setAttachedFiles((prev) => [
+              ...prev,
+              { name: file.name, content: text, type: file.type },
+            ]);
+          } catch (error) {
+            console.error("Error reading PDF:", error);
+          }
         } else if (
           file.type === "text/plain" ||
           file.type === "application/json" ||
@@ -143,7 +159,25 @@ export function ChatInput({
           file.name.endsWith(".cpp") ||
           file.name.endsWith(".c") ||
           file.name.endsWith(".html") ||
-          file.name.endsWith(".css")
+          file.name.endsWith(".css") ||
+          file.name.endsWith(".yml") ||
+          file.name.endsWith(".yaml") ||
+          file.name.endsWith(".xml") ||
+          file.name.endsWith(".sh") ||
+          file.name.endsWith(".bat") ||
+          file.name.endsWith(".ps1") ||
+          file.name.endsWith(".sql") ||
+          file.name.endsWith(".env") ||
+          file.name.endsWith(".csv") ||
+          file.name.endsWith(".ini") ||
+          file.name.endsWith(".conf") ||
+          file.name.endsWith(".rb") ||
+          file.name.endsWith(".php") ||
+          file.name.endsWith(".go") ||
+          file.name.endsWith(".rs") ||
+          file.name.endsWith(".swift") ||
+          file.name.endsWith(".kt") ||
+          file.name.endsWith(".dart")
         ) {
           const reader = new FileReader();
           reader.onload = (event) => {
@@ -169,9 +203,8 @@ export function ChatInput({
     setImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  {/* Mobile padding for PWA */}
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.7rem)] md:pb-3">
+    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4">
       {(images.length > 0 || attachedFiles.length > 0) && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((image, index) => (
@@ -219,7 +252,7 @@ export function ChatInput({
           type="file"
           ref={fileInputRef}
           onChange={handleFileSelect}
-          accept=".txt,.md,.json,.js,.ts,.jsx,.tsx,.py,.java,.cpp,.c,.html,.css,text/*"
+          accept=".txt,.md,.json,.js,.ts,.jsx,.tsx,.py,.java,.cpp,.c,.html,.css,.pdf,.yml,.yaml,.xml,.sh,.bat,.ps1,.sql,.env,.csv,.ini,.conf,.rb,.php,.go,.rs,.swift,.kt,.dart,text/*,application/pdf"
           multiple
           className="hidden"
         />
@@ -244,7 +277,7 @@ export function ChatInput({
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title="Attach files (code, text, markdown)"
+              title="Attach files (code, text, markdown, PDF)"
             >
               <Paperclip className="h-5 w-5" />
             </Button>
@@ -281,18 +314,18 @@ export function ChatInput({
           type="button"
           variant="ghost"
           size="icon"
-          onClick={handleSubmit}
+          onClick={isLoading && onStop ? onStop : handleSubmit}
           disabled={
-            (!input.trim() &&
+            (!isLoading &&
+              !input.trim() &&
               images.length === 0 &&
               attachedFiles.length === 0) ||
-            isLoading ||
             disabled
           }
           className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
         >
           {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Square className="h-5 w-5 fill-current" />
           ) : (
             <Send className="h-5 w-5" />
           )}

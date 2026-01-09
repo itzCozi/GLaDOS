@@ -6,6 +6,7 @@ import { ChatSidebar } from "./ChatSidebar";
 import { SettingsDialog } from "./SettingsDialog.tsx";
 import { RenameDialog } from "./RenameDialog";
 import { sendMessage, generateImage, generateChatTitle } from "@/services/grok";
+import { countTokens, calculateCost } from "@/lib/tokenizer";
 import { exportChat } from "@/lib/export";
 import type { Message, ChatSession } from "@/types/chat";
 import { PanelLeft, Download, X } from "lucide-react";
@@ -98,6 +99,14 @@ export function ChatContainer() {
     content: string;
     images: string[];
   } | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const isUserNearBottom = useRef(true);
@@ -113,6 +122,17 @@ export function ChatContainer() {
     () => currentSession?.messages || [],
     [currentSession],
   );
+
+  const { totalCost } = useMemo(() => {
+    if (!currentSession) return { totalTokens: 0, totalCost: 0 };
+    return currentSession.messages.reduce(
+      (acc, msg) => ({
+        totalTokens: acc.totalTokens + (msg.tokenCount || 0),
+        totalCost: acc.totalCost + (msg.cost || 0),
+      }),
+      { totalTokens: 0, totalCost: 0 },
+    );
+  }, [currentSession]);
 
   const orderedSessions = useMemo(() => orderSessions(sessions), [sessions]);
 
@@ -421,6 +441,9 @@ export function ChatContainer() {
           ),
         );
 
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         let accumulatedResponse = "";
         const response = await sendMessage(
           messagesToSend,
@@ -446,6 +469,7 @@ export function ChatContainer() {
               }),
             );
           },
+          controller.signal,
         );
 
         setSessions((prev) =>
@@ -453,19 +477,51 @@ export function ChatContainer() {
             s.id === sessionId
               ? {
                   ...s,
-                  messages: s.messages.map((m) =>
-                    m.id === newMessageId ? { ...m, content: response } : m,
-                  ),
+                  messages: s.messages.map((m) => {
+                    if (m.id === newMessageId) {
+                      const tokens = countTokens(response);
+                      return {
+                        ...m,
+                        content: response,
+                        tokenCount: tokens,
+                        cost: calculateCost(tokens, model, "output"),
+                      };
+                    }
+                    return m;
+                  }),
                   updatedAt: new Date(),
                 }
               : s,
           ),
         );
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id === sessionId) {
+                const lastMessage = s.messages[s.messages.length - 1];
+                if (lastMessage && lastMessage.role === "assistant") {
+                  return {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === lastMessage.id
+                        ? { ...m, content: "Response stopped by user" }
+                        : m,
+                    ),
+                    updatedAt: new Date(),
+                  };
+                }
+              }
+              return s;
+            }),
+          );
+          return;
+        }
         const errorMessage =
           err instanceof Error ? err.message : "Failed to regenerate";
         setError(errorMessage);
       } finally {
+        abortControllerRef.current = null;
         setGeneratingSessionIds((prev) => {
           const next = new Set(prev);
           next.delete(sessionId);
@@ -490,6 +546,170 @@ export function ChatContainer() {
       );
     },
     [currentSessionId, allMessages, messages],
+  );
+
+  const handleEditMessage = useCallback(
+    async (messageIndex: number, newContent: string) => {
+      if (!apiKey || !currentSessionId) return;
+
+      const sessionId = currentSessionId;
+      const actualIndex = allMessages.length - messages.length + messageIndex;
+      const messagesBefore = allMessages.slice(0, actualIndex);
+      const oldMessage = allMessages[actualIndex];
+
+      const updatedMessage: Message = {
+        ...oldMessage,
+        content: newContent,
+        timestamp: new Date(),
+        tokenCount: countTokens(newContent),
+        cost: calculateCost(countTokens(newContent), model, "input"),
+      };
+
+      const messagesToSend = [...messagesBefore, updatedMessage];
+
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? {
+                ...s,
+                messages: messagesToSend,
+                updatedAt: new Date(),
+              }
+            : s,
+        ),
+      );
+
+      if (updatedMessage.role !== "user") return;
+
+      setGeneratingSessionIds((prev) => {
+        const next = new Set(prev);
+        next.add(sessionId);
+        return next;
+      });
+      setError(null);
+
+      try {
+        const messagesWithSystem = systemPhrase
+          ? [
+              {
+                id: "system",
+                role: "system" as const,
+                content: systemPhrase,
+                timestamp: new Date(),
+              },
+              ...messagesToSend,
+            ]
+          : messagesToSend;
+
+        const newMessageId = crypto.randomUUID();
+        const newMessage: Message = {
+          id: newMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        };
+
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  messages: [...messagesToSend, newMessage],
+                  updatedAt: new Date(),
+                }
+              : s,
+          ),
+        );
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        let accumulatedResponse = "";
+        const response = await sendMessage(
+          messagesWithSystem,
+          apiKey,
+          model,
+          (chunk) => {
+            accumulatedResponse += chunk;
+            setSessions((prev) =>
+              prev.map((s) => {
+                if (s.id === sessionId) {
+                  const updatedMessages = s.messages.map((m) =>
+                    m.id === newMessageId
+                      ? { ...m, content: accumulatedResponse }
+                      : m,
+                  );
+                  return {
+                    ...s,
+                    messages: updatedMessages,
+                    updatedAt: new Date(),
+                  };
+                }
+                return s;
+              }),
+            );
+          },
+          controller.signal,
+        );
+
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  messages: s.messages.map((m) => {
+                    if (m.id === newMessageId) {
+                      const tokens = countTokens(response);
+                      return {
+                        ...m,
+                        content: response,
+                        tokenCount: tokens,
+                        cost: calculateCost(tokens, model, "output"),
+                      };
+                    }
+                    return m;
+                  }),
+                  updatedAt: new Date(),
+                }
+              : s,
+          ),
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id === sessionId) {
+                const lastMessage = s.messages[s.messages.length - 1];
+                if (lastMessage && lastMessage.role === "assistant") {
+                  return {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === lastMessage.id
+                        ? { ...m, content: "Response stopped by user" }
+                        : m,
+                    ),
+                    updatedAt: new Date(),
+                  };
+                }
+              }
+              return s;
+            }),
+          );
+          return;
+        }
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to branch conversation";
+        setError(errorMessage);
+      } finally {
+        abortControllerRef.current = null;
+        setGeneratingSessionIds((prev) => {
+          const next = new Set(prev);
+          next.delete(sessionId);
+          return next;
+        });
+      }
+    },
+    [apiKey, currentSessionId, allMessages, messages, model, systemPhrase],
   );
 
   const handleExportChat = useCallback(
@@ -533,6 +753,8 @@ export function ChatContainer() {
         content,
         images: images.length > 0 ? images : undefined,
         timestamp: new Date(),
+        tokenCount: countTokens(content),
+        cost: calculateCost(countTokens(content), model, "input"),
       };
 
       const newMessages = [...currentMessages, userMessage];
@@ -641,6 +863,9 @@ export function ChatContainer() {
             }),
           );
 
+          const controller = new AbortController();
+          abortControllerRef.current = controller;
+
           let accumulatedResponse = "";
           const response = await sendMessage(
             messagesToSend,
@@ -666,14 +891,24 @@ export function ChatContainer() {
                 }),
               );
             },
+            controller.signal,
           );
 
           setSessions((prev) =>
             prev.map((s) => {
               if (s.id === sessionId) {
-                const updatedMessages = s.messages.map((m) =>
-                  m.id === assistantMessageId ? { ...m, content: response } : m,
-                );
+                const updatedMessages = s.messages.map((m) => {
+                  if (m.id === assistantMessageId) {
+                    const tokens = countTokens(response);
+                    return {
+                      ...m,
+                      content: response,
+                      tokenCount: tokens,
+                      cost: calculateCost(tokens, model, "output"),
+                    };
+                  }
+                  return m;
+                });
                 return {
                   ...s,
                   messages: updatedMessages,
@@ -685,10 +920,33 @@ export function ChatContainer() {
           );
         }
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id === sessionId) {
+                const lastMessage = s.messages[s.messages.length - 1];
+                if (lastMessage && lastMessage.role === "assistant") {
+                  return {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === lastMessage.id
+                        ? { ...m, content: "Response stopped by user" }
+                        : m,
+                    ),
+                    updatedAt: new Date(),
+                  };
+                }
+              }
+              return s;
+            }),
+          );
+          return;
+        }
         const errorMessage =
           err instanceof Error ? err.message : "An error occurred";
         setError(errorMessage);
       } finally {
+        abortControllerRef.current = null;
         setGeneratingSessionIds((prev) => {
           const next = new Set(prev);
           next.delete(sessionId);
@@ -706,6 +964,62 @@ export function ChatContainer() {
     }
   }, [isSettingsOpen, apiKey, pendingMessage, handleSend]);
 
+  const handleDeleteSessions = useCallback(
+    (ids: string[]) => {
+      setSessions((prev) => prev.filter((s) => !ids.includes(s.id)));
+      if (currentSessionId && ids.includes(currentSessionId)) {
+        setCurrentSessionId(null);
+      }
+    },
+    [currentSessionId],
+  );
+
+  const handleReorderSessions = useCallback(
+    (sourceIds: string[], targetId: string) => {
+      if (sourceIds.includes(targetId) || sourceIds.length === 0) return;
+
+      setSessions((prev) => {
+        const currentIndices = sourceIds
+          .map((id) => prev.findIndex((s) => s.id === id))
+          .filter((idx) => idx !== -1)
+          .sort((a, b) => a - b);
+
+        if (currentIndices.length === 0) return prev;
+
+        const sessionsToMove = currentIndices.map((idx) => prev[idx]);
+        const sessionsToMoveIds = new Set(sessionsToMove.map((s) => s.id));
+
+        const remainingSessions = prev.filter(
+          (s) => !sessionsToMoveIds.has(s.id),
+        );
+
+        const targetIndex = remainingSessions.findIndex(
+          (s) => s.id === targetId,
+        );
+
+        if (targetIndex === -1) {
+          return prev;
+        }
+
+        const updated = [...remainingSessions];
+        updated.splice(targetIndex, 0, ...sessionsToMove);
+
+        return orderSessions(updated);
+      });
+    },
+    [],
+  );
+
+  const handleTogglePinSessions = useCallback((ids: string[], pin: boolean) => {
+    setSessions((prev) =>
+      orderSessions(
+        prev.map((session) =>
+          ids.includes(session.id) ? { ...session, pinned: pin } : session,
+        ),
+      ),
+    );
+  }, []);
+
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">
       {isSidebarOpen && (
@@ -722,8 +1036,11 @@ export function ChatContainer() {
           }}
           onDeleteSession={deleteSession}
           onReorderSession={handleReorderSession}
+          onReorderSessions={handleReorderSessions}
           onTogglePin={handleTogglePinSession}
           onRenameSession={handleRenameSession}
+          onDeleteSessions={handleDeleteSessions}
+          onTogglePinSessions={handleTogglePinSessions}
           onClose={() => setIsSidebarOpen(false)}
         />
       )}
@@ -747,6 +1064,16 @@ export function ChatContainer() {
             <h1 className="text-xl font-semibold truncate">
               {currentSession?.title || siteName}
             </h1>
+            {currentSession && totalCost > 0 && (
+              <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground ml-4 border-l pl-4">
+                <span
+                  title="Total estimated cost"
+                  className="flex items-center gap-1"
+                >
+                  ${totalCost.toFixed(5)}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {currentSession && (
@@ -775,6 +1102,7 @@ export function ChatContainer() {
             <SettingsDialog
               open={isSettingsOpen}
               onOpenChange={setIsSettingsOpen}
+              sessions={sessions}
             />
           </div>
         </header>
@@ -855,6 +1183,9 @@ export function ChatContainer() {
                           : undefined
                       }
                       onDelete={() => handleDeleteMessage(index)}
+                      onEdit={(newContent) =>
+                        handleEditMessage(index, newContent)
+                      }
                       isSidebarOpen={isSidebarOpen}
                     />
                   );
@@ -911,6 +1242,7 @@ export function ChatContainer() {
 
         <ChatInput
           onSend={handleSend}
+          onStop={stopGeneration}
           isLoading={
             !!currentSessionId && generatingSessionIds.has(currentSessionId)
           }

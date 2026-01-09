@@ -4,6 +4,8 @@ export interface Message {
   content: string;
   images?: string[];
   timestamp: Date;
+  tokenCount?: number;
+  cost?: number;
 }
 
 export interface ChatSession {

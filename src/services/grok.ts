@@ -12,6 +12,7 @@ export async function sendMessage(
   apiKey: string,
   model: string = "grok-4",
   onChunk?: (chunk: string) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
   const formattedMessages = messages.map((msg) => {
     if (msg.images && msg.images.length > 0) {
@@ -46,6 +47,7 @@ export async function sendMessage(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(request),
+    signal,
   });
 
   if (!response.ok) {
@@ -96,7 +98,12 @@ export async function generateChatTitle(
   message: string,
   apiKey: string,
 ): Promise<string> {
-  const prompt = `Generate a very short, concise title (max 4-5 words, under 30 chars) for the following user message. Do not use quotes or punctuation. Ensure words are separated by spaces. return ONLY the title. EX: Closest Gas Station, Best Online Marketplace, Easy Dinner Recipes
+  const prompt = `Generate a concise title (approx 3-6 words) based on the following user message.
+  Rules:
+  1. Do not use quotes.
+  2. Ensure the title is a complete phrase.
+  3. ABSOLUTELY DO NOT truncate words or end with partial words.
+  4. Return ONLY the title text.
   
   User message: "${message}"`;
 
@@ -123,7 +130,7 @@ export async function generateChatTitle(
     });
 
     if (!response.ok) {
-      return ""; // Fallback on failure
+      return "";
     }
 
     const data: GrokAPIResponse = await response.json();

@@ -19,15 +19,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PROVIDER_INFO, PROVIDER_MODELS } from "../../types/providers";
 import { useSettings } from "@/lib/settings-store";
+import type { ChatSession } from "@/types/chat";
+import { Coins, MessagesSquare, Database } from "lucide-react";
 
 interface SettingsDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  sessions?: ChatSession[];
 }
 
 export function SettingsDialog({
   open: propOpen,
   onOpenChange: propOnOpenChange,
+  sessions = [],
 }: SettingsDialogProps) {
   const {
     apiKey,
@@ -52,6 +56,37 @@ export function SettingsDialog({
 
   const providerInfo = PROVIDER_INFO["grok"];
   const availableModels = PROVIDER_MODELS["grok"];
+
+  const stats = sessions.reduce(
+    (acc, session) => {
+      const sessionStats = session.messages.reduce(
+        (mAcc, msg) => ({
+          inputTokens:
+            mAcc.inputTokens + (msg.role === "user" ? msg.tokenCount || 0 : 0),
+          outputTokens:
+            mAcc.outputTokens + (msg.role !== "user" ? msg.tokenCount || 0 : 0),
+          totalCost: mAcc.totalCost + (msg.cost || 0),
+          count: mAcc.count + 1,
+        }),
+        { inputTokens: 0, outputTokens: 0, totalCost: 0, count: 0 },
+      );
+
+      return {
+        totalChats: acc.totalChats + 1,
+        totalMessages: acc.totalMessages + sessionStats.count,
+        totalInputTokens: acc.totalInputTokens + sessionStats.inputTokens,
+        totalOutputTokens: acc.totalOutputTokens + sessionStats.outputTokens,
+        totalCost: acc.totalCost + sessionStats.totalCost,
+      };
+    },
+    {
+      totalChats: 0,
+      totalMessages: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCost: 0,
+    },
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -81,7 +116,69 @@ export function SettingsDialog({
             <TabsTrigger value="preferences" className="flex-1 min-w-fit">
               Preferences
             </TabsTrigger>
+            <TabsTrigger value="stats" className="flex-1 min-w-fit">
+              Stats
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="stats" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col p-4 rounded-lg bg-secondary/50 space-y-2">
+                <span className="text-muted-foreground text-sm flex items-center gap-2">
+                  <MessagesSquare className="w-4 h-4" /> Total Chats
+                </span>
+                <span className="text-2xl font-bold">{stats.totalChats}</span>
+              </div>
+              <div className="flex flex-col p-4 rounded-lg bg-secondary/50 space-y-2">
+                <span className="text-muted-foreground text-sm flex items-center gap-2">
+                  <Database className="w-4 h-4" /> Total Messages
+                </span>
+                <span className="text-2xl font-bold">
+                  {stats.totalMessages}
+                </span>
+              </div>
+              <div className="flex flex-col p-4 rounded-lg bg-secondary/50 space-y-2 col-span-2">
+                <span className="text-muted-foreground text-sm flex items-center gap-2">
+                  <Coins className="w-4 h-4" /> Estimated Cost
+                </span>
+                <span className="text-3xl font-bold text-primary">
+                  ${stats.totalCost.toFixed(5)}
+                </span>
+                <p className="text-xs text-muted-foreground pt-1">
+                  Based on current model pricing (Input:{" "}
+                  {stats.totalInputTokens.toLocaleString()} tokens, Output:{" "}
+                  {stats.totalOutputTokens.toLocaleString()} tokens)
+                </p>
+              </div>
+              <div className="flex flex-col p-4 rounded-lg bg-secondary/50 space-y-2 col-span-2">
+                <span className="text-muted-foreground text-sm flex items-center gap-2">
+                  Token Usage Breakdown
+                </span>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>Input Tokens:</span>
+                    <span className="font-mono">
+                      {stats.totalInputTokens.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Output Tokens:</span>
+                    <span className="font-mono">
+                      {stats.totalOutputTokens.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t font-medium">
+                    <span>Total Tokens:</span>
+                    <span className="font-mono">
+                      {(
+                        stats.totalInputTokens + stats.totalOutputTokens
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent value="branding" className="space-y-4">
             <div>
