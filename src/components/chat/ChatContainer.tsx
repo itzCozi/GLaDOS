@@ -1021,7 +1021,7 @@ export function ChatContainer() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="flex h-dvh bg-background overflow-hidden relative">
       {isSidebarOpen && (
         <ChatSidebar
           sessions={orderedSessions}
@@ -1046,7 +1046,7 @@ export function ChatContainer() {
       )}
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="flex items-center justify-between px-4 py-3 bg-background z-10">
+        <header className="flex items-center justify-between px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] bg-background z-10">
           <div className="flex items-center gap-2 overflow-hidden">
             <Button
               variant="link"

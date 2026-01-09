@@ -67,6 +67,8 @@ export function ChatSidebar({
   const dragEnabled = !searchQuery && !selectionRect;
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (window.innerWidth < 768) return;
+
     const target = e.target as HTMLElement;
     if (
       target.closest("button") ||
@@ -253,7 +255,7 @@ export function ChatSidebar({
 
   return (
     <div className="w-full md:w-72 flex flex-col h-full bg-background md:bg-muted/30 md:border-r border-border absolute z-50 md:relative md:z-0">
-      <div className="flex items-center justify-between p-4 pb-2 md:hidden">
+      <div className="flex items-center justify-between px-4 pb-2 pt-[calc(1rem+env(safe-area-inset-top))] md:hidden">
         <h2 className="font-semibold text-lg">Chats</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-5 w-5" />
@@ -422,7 +424,7 @@ export function ChatSidebar({
         </div>
       </ScrollArea>
 
-      <div className="px-4 py-3">
+      <div className="px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         {selectedIds.size > 0 ? (
           <div className="flex items-center gap-2">
             <Button

@@ -14,6 +14,7 @@ export async function sendMessage(
   onChunk?: (chunk: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
+  apiKey = apiKey.replace(/\s/g, "");
   const formattedMessages = messages.map((msg) => {
     if (msg.images && msg.images.length > 0) {
       const content: ContentPart[] = [{ type: "text", text: msg.content }];
@@ -98,6 +99,7 @@ export async function generateChatTitle(
   message: string,
   apiKey: string,
 ): Promise<string> {
+  apiKey = apiKey.replace(/\s/g, "");
   const prompt = `Generate a concise title (approx 3-6 words) based on the following user message.
   Rules:
   1. Do not use quotes.
@@ -147,6 +149,7 @@ export async function generateImage(
   apiKey: string,
   model?: string,
 ): Promise<string> {
+  apiKey = apiKey.replace(/\s/g, "");
   try {
     const PREFERRED_IMAGE_MODEL = "grok-2-image-1212";
 

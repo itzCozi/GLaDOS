@@ -20,45 +20,53 @@ const DEFAULTS = {
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [apiKey, setApiKeyState] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.get("apikey") || localStorage.getItem(STORAGE_KEYS.API_KEY) || ""
-    );
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlKey = params.get("apikey");
+      if (urlKey) return urlKey;
+    }
+    return localStorage.getItem(STORAGE_KEYS.API_KEY) || "";
   });
+
   const [model, setModelState] = useState(
     () => localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULTS.MODEL,
   );
+
   const [aiName, setAiNameState] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.get("name") ||
-      localStorage.getItem(STORAGE_KEYS.AI_NAME) ||
-      DEFAULTS.AI_NAME
-    );
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlName = params.get("name");
+      if (urlName) return urlName;
+    }
+    return localStorage.getItem(STORAGE_KEYS.AI_NAME) || DEFAULTS.AI_NAME;
   });
+
+  const [siteName, setSiteNameState] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlSite = params.get("site");
+      if (urlSite) return urlSite;
+    }
+    return localStorage.getItem(STORAGE_KEYS.SITE_NAME) || DEFAULTS.SITE_NAME;
+  });
+
   const [systemPhrase, setSystemPhraseState] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlAiName = params.get("name");
     let phrase =
       localStorage.getItem(STORAGE_KEYS.SYSTEM_PHRASE) ||
       DEFAULTS.SYSTEM_PHRASE;
 
-    if (urlAiName) {
-      const storedAiName =
-        localStorage.getItem(STORAGE_KEYS.AI_NAME) || DEFAULTS.AI_NAME;
-      if (storedAiName && phrase.includes(storedAiName)) {
-        phrase = phrase.split(storedAiName).join(urlAiName);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlName = params.get("name");
+      if (urlName) {
+        const oldName =
+          localStorage.getItem(STORAGE_KEYS.AI_NAME) || DEFAULTS.AI_NAME;
+        if (oldName && phrase.includes(oldName)) {
+          phrase = phrase.split(oldName).join(urlName);
+        }
       }
     }
     return phrase;
-  });
-  const [siteName, setSiteNameState] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.get("site") ||
-      localStorage.getItem(STORAGE_KEYS.SITE_NAME) ||
-      DEFAULTS.SITE_NAME
-    );
   });
 
   useEffect(() => {

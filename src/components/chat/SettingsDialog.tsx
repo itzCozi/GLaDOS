@@ -105,13 +105,7 @@ export function SettingsDialog({
         <Tabs defaultValue="api" className="w-full">
           <TabsList className="flex w-full h-auto overflow-x-auto justify-start p-1 gap-1">
             <TabsTrigger value="api" className="flex-1 min-w-fit">
-              API Key
-            </TabsTrigger>
-            <TabsTrigger value="model" className="flex-1 min-w-fit">
-              Model
-            </TabsTrigger>
-            <TabsTrigger value="branding" className="flex-1 min-w-fit">
-              Branding
+              API
             </TabsTrigger>
             <TabsTrigger value="preferences" className="flex-1 min-w-fit">
               Preferences
@@ -180,31 +174,6 @@ export function SettingsDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="branding" className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">AI Name</label>
-              <input
-                type="text"
-                value={aiName}
-                onChange={(e) => setAiName(e.target.value)}
-                placeholder="GLaDOS"
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Site Name
-              </label>
-              <input
-                type="text"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                placeholder="GLaDOS"
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </TabsContent>
-
           <TabsContent value="api" className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -229,9 +198,6 @@ export function SettingsDialog({
                 </a>
               </p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="model" className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
                 Select Model
@@ -296,6 +262,30 @@ export function SettingsDialog({
 
           <TabsContent value="preferences" className="space-y-4">
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  AI Name
+                </label>
+                <input
+                  type="text"
+                  value={aiName}
+                  onChange={(e) => setAiName(e.target.value)}
+                  placeholder="GLaDOS"
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Site Name
+                </label>
+                <input
+                  type="text"
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  placeholder="GLaDOS"
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
               {setSystemPhrase && (
                 <div>
                   <label className="block text-sm font-medium mb-2">

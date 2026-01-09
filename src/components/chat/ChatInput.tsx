@@ -204,7 +204,7 @@ export function ChatInput({
   }, []);
 
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 py-3 md:px-4">
+    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-backdrop-filter:backdrop-blur border-t border-border px-3 pt-3 md:px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
       {(images.length > 0 || attachedFiles.length > 0) && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((image, index) => (
