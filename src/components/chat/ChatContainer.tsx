@@ -5,7 +5,7 @@ import { ChatInput } from "./ChatInput";
 import { ChatSidebar } from "./ChatSidebar";
 import { SettingsDialog } from "./SettingsDialog.tsx";
 import { RenameDialog } from "./RenameDialog";
-import { sendMessage, generateImage, generateChatTitle } from "@/services/grok";
+import { sendMessage, generateImage, generateChatTitle, isNetworkError } from "@/services/grok";
 import { countTokens, calculateCost } from "@/lib/tokenizer";
 import { exportChat } from "@/lib/export";
 import type { Message, ChatSession } from "@/types/chat";
@@ -26,6 +26,14 @@ const STORAGE_KEY_CURRENT_SESSION = "glados-current-session";
 const MESSAGES_PER_PAGE = 20;
 
 const MAX_CHAT_TITLE_LENGTH = 24;
+
+function formatApiError(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback;
+  if (isNetworkError(err)) {
+    return "Network error: Could not reach the API. Please check your internet connection and try again.";
+  }
+  return err.message;
+}
 
 function normalizeTitleSpacing(title: string): string {
   const withSpaces = title
@@ -517,8 +525,7 @@ export function ChatContainer() {
           );
           return;
         }
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to regenerate";
+        const errorMessage = formatApiError(err, "Failed to regenerate");
         setError(errorMessage);
       } finally {
         abortControllerRef.current = null;
@@ -697,8 +704,7 @@ export function ChatContainer() {
           );
           return;
         }
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to branch conversation";
+        const errorMessage = formatApiError(err, "Failed to branch conversation");
         setError(errorMessage);
       } finally {
         abortControllerRef.current = null;
@@ -942,8 +948,7 @@ export function ChatContainer() {
           );
           return;
         }
-        const errorMessage =
-          err instanceof Error ? err.message : "An error occurred";
+        const errorMessage = formatApiError(err, "An error occurred");
         setError(errorMessage);
       } finally {
         abortControllerRef.current = null;

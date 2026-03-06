@@ -5,7 +5,60 @@ import type {
   ContentPart,
 } from "@/types/chat";
 
-const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
+const PROXY_BASE = "https://torn-unicorn.fly.dev";
+const GROK_CHAT_URL = "https://api.x.ai/v1/chat/completions";
+const GROK_IMAGE_URL = "https://api.x.ai/v1/images/generations";
+
+function proxiedUrl(url: string): string {
+  if (!url.startsWith("https://api.x.ai/")) {
+    throw new Error("proxiedUrl: only api.x.ai URLs are allowed");
+  }
+  return `${PROXY_BASE}/?destination=${encodeURIComponent(url)}`;
+}
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+export function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg === "failed to fetch" ||
+    msg === "networkerror when attempting to fetch resource." ||
+    msg === "load failed" ||
+    msg.includes("network")
+  );
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      if (init?.signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+      return await fetch(input, init);
+    } catch (error) {
+      lastError = error;
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
+      if (!isNetworkError(error) || attempt === MAX_RETRIES) {
+        throw error;
+      }
+      const backoff = BASE_DELAY_MS * Math.pow(2, attempt);
+      await delay(backoff);
+    }
+  }
+  throw lastError;
+}
 
 export async function sendMessage(
   messages: Message[],
@@ -41,7 +94,7 @@ export async function sendMessage(
     stream: !!onChunk,
   };
 
-  const response = await fetch(GROK_API_URL, {
+  const response = await fetchWithRetry(proxiedUrl(GROK_CHAT_URL), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -122,7 +175,7 @@ export async function generateChatTitle(
   };
 
   try {
-    const response = await fetch(GROK_API_URL, {
+    const response = await fetchWithRetry(proxiedUrl(GROK_CHAT_URL), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -191,14 +244,17 @@ export async function generateImage(
     };
 
     const doRequest = async (includeModel: boolean) => {
-      const response = await fetch("https://api.x.ai/v1/images/generations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetchWithRetry(
+        proxiedUrl(GROK_IMAGE_URL),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(makeRequestBody(includeModel)),
         },
-        body: JSON.stringify(makeRequestBody(includeModel)),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
