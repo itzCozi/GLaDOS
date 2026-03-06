@@ -10,6 +10,9 @@ const GROK_CHAT_URL = "https://api.x.ai/v1/chat/completions";
 const GROK_IMAGE_URL = "https://api.x.ai/v1/images/generations";
 
 function proxiedUrl(url: string): string {
+  if (!url.startsWith("https://api.x.ai/")) {
+    throw new Error("proxiedUrl: only api.x.ai URLs are allowed");
+  }
   return `${PROXY_BASE}/?destination=${encodeURIComponent(url)}`;
 }
 
