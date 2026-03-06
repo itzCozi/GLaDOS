@@ -27,6 +27,20 @@ const MESSAGES_PER_PAGE = 20;
 
 const MAX_CHAT_TITLE_LENGTH = 24;
 
+function formatApiError(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback;
+  if (
+    err instanceof TypeError &&
+    (err.message === "Failed to fetch" ||
+      err.message === "NetworkError when attempting to fetch resource." ||
+      err.message === "Load failed" ||
+      err.message.includes("network"))
+  ) {
+    return "Network error: Could not reach the API. Please check your internet connection and try again.";
+  }
+  return err.message;
+}
+
 function normalizeTitleSpacing(title: string): string {
   const withSpaces = title
     .replace(/[_-]+/g, " ")
@@ -517,8 +531,7 @@ export function ChatContainer() {
           );
           return;
         }
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to regenerate";
+        const errorMessage = formatApiError(err, "Failed to regenerate");
         setError(errorMessage);
       } finally {
         abortControllerRef.current = null;
@@ -697,8 +710,7 @@ export function ChatContainer() {
           );
           return;
         }
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to branch conversation";
+        const errorMessage = formatApiError(err, "Failed to branch conversation");
         setError(errorMessage);
       } finally {
         abortControllerRef.current = null;
@@ -942,8 +954,7 @@ export function ChatContainer() {
           );
           return;
         }
-        const errorMessage =
-          err instanceof Error ? err.message : "An error occurred";
+        const errorMessage = formatApiError(err, "An error occurred");
         setError(errorMessage);
       } finally {
         abortControllerRef.current = null;
