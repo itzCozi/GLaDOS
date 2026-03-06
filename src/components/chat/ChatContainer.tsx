@@ -5,7 +5,7 @@ import { ChatInput } from "./ChatInput";
 import { ChatSidebar } from "./ChatSidebar";
 import { SettingsDialog } from "./SettingsDialog.tsx";
 import { RenameDialog } from "./RenameDialog";
-import { sendMessage, generateImage, generateChatTitle } from "@/services/grok";
+import { sendMessage, generateImage, generateChatTitle, isNetworkError } from "@/services/grok";
 import { countTokens, calculateCost } from "@/lib/tokenizer";
 import { exportChat } from "@/lib/export";
 import type { Message, ChatSession } from "@/types/chat";
@@ -29,13 +29,7 @@ const MAX_CHAT_TITLE_LENGTH = 24;
 
 function formatApiError(err: unknown, fallback: string): string {
   if (!(err instanceof Error)) return fallback;
-  if (
-    err instanceof TypeError &&
-    (err.message === "Failed to fetch" ||
-      err.message === "NetworkError when attempting to fetch resource." ||
-      err.message === "Load failed" ||
-      err.message.includes("network"))
-  ) {
+  if (isNetworkError(err)) {
     return "Network error: Could not reach the API. Please check your internet connection and try again.";
   }
   return err.message;

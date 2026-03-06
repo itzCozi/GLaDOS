@@ -10,13 +10,14 @@ const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
 
-function isNetworkError(error: unknown): boolean {
+export function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false;
+  const msg = error.message.toLowerCase();
   return (
-    error instanceof TypeError &&
-    (error.message === "Failed to fetch" ||
-      error.message === "NetworkError when attempting to fetch resource." ||
-      error.message === "Load failed" ||
-      error.message.includes("network"))
+    msg === "failed to fetch" ||
+    msg === "networkerror when attempting to fetch resource." ||
+    msg === "load failed" ||
+    msg.includes("network")
   );
 }
 
