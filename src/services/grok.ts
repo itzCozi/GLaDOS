@@ -5,7 +5,13 @@ import type {
   ContentPart,
 } from "@/types/chat";
 
-const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
+const PROXY_BASE = "https://torn-unicorn.fly.dev";
+const GROK_CHAT_URL = "https://api.x.ai/v1/chat/completions";
+const GROK_IMAGE_URL = "https://api.x.ai/v1/images/generations";
+
+function proxiedUrl(url: string): string {
+  return `${PROXY_BASE}/?destination=${encodeURIComponent(url)}`;
+}
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
@@ -85,7 +91,7 @@ export async function sendMessage(
     stream: !!onChunk,
   };
 
-  const response = await fetchWithRetry(GROK_API_URL, {
+  const response = await fetchWithRetry(proxiedUrl(GROK_CHAT_URL), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -166,7 +172,7 @@ export async function generateChatTitle(
   };
 
   try {
-    const response = await fetchWithRetry(GROK_API_URL, {
+    const response = await fetchWithRetry(proxiedUrl(GROK_CHAT_URL), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -236,7 +242,7 @@ export async function generateImage(
 
     const doRequest = async (includeModel: boolean) => {
       const response = await fetchWithRetry(
-        "https://api.x.ai/v1/images/generations",
+        proxiedUrl(GROK_IMAGE_URL),
         {
           method: "POST",
           headers: {
